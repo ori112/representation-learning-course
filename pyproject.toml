@@ -1,0 +1,19 @@
+[project]
+name = "midterm-assignment"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "datasets>=5.2.0",
+    "kornia>=0.9.1",
+    "matplotlib>=3.11.2",
+    "pytorch-lightning>=2.6.6",
+    "pyyaml>=6.0.3",
+    "scikit-learn>=1.9.1",
+    "tensorboard>=2.21.0",
+    "torch>=2.15.0",
+    "torchmetrics>=1.9.0",
+    "torchvision>=0.29.2",
+    "umap-learn>=0.6.0",
+]

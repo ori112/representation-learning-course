@@ -1,0 +1,10 @@
+# Colab already ships torch and torchvision with CUDA, so they are not listed.
+pytorch-lightning
+torchmetrics
+tensorboard
+matplotlib
+datasets
+kornia
+scikit-learn
+pyyaml
+umap-learn

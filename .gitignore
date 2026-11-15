@@ -5,3 +5,4 @@
 **/tb_logs/
 **/*.ckpt
 **/*.pt
+.venv/
