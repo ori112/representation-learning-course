@@ -1,0 +1,6 @@
+# Tiny CPU-friendly run to check the wiring: python train.py --config configs/smoke.yaml
+run_name: smoke_dae
+train_fraction: 0.02
+batch_size: 64
+max_epochs: 2
+knn_every_n_epochs: 1

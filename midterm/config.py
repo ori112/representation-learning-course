@@ -1,54 +1,51 @@
-# Training hyperparameters
-NUM_CLASSES = 10  # MNIST and Fashion-MNIST both have 10 classes (but different meanings!)
-LEARNING_RATE = 0.001
-BATCH_SIZE = 64
-NUM_EPOCHS = 100
-LATENT_DIM = 64  # length of z. AutoEncoder and EncoderClassifier must use the same value.
+"""Run configuration: defaults here, overridden by one YAML file per experiment.
 
-# Dataset
-DATA_DIR = "dataset/"
-NUM_WORKERS = 4
+Every run is `python train.py --config configs/<name>.yaml`. The YAML only lists
+what differs from DEFAULTS, so each file reads as "what this experiment changes".
+"""
+import yaml
 
-# Compute related
-ACCELERATOR = "auto"  # GPU on Colab, CPU on this Mac
-DEVICES = 1
-PRECISION = "16-mixed"  # same as 16 (the old name); falls back to bf16 on CPU
+DEFAULTS = {
+    # --- run identity and paths
+    "run_name": "dae_default",
+    "mode": "pretrain_dae",        # which model train.py builds (see utils.build_model)
+    "seed": 42,                    # fixed seed: same init and data order on every rerun
+    "data_dir": "dataset/",        # cached Tiny-ImageNet tensors live here
+    "output_dir": "outputs",       # checkpoints, TensorBoard logs, saved encoders (put on Drive in Colab)
+    "results_dir": "results",      # small metric JSONs, committed to git
 
-# Models (see model.py), picked per experiment in train.py:
-#   "pretrain"                    : AutoEncoder - reconstruction on MNIST, saves the encoder
-#   "pretrain_supervised"         : NN - ResNet-18 trained with cross-entropy on MNIST
-#   "pretrain_supervise_encoder"  : SupervisedEncoder - small encoder + head from scratch on MNIST, saves the encoder
-#   "pretrain_simclr"             : SimCLR - contrastive loss on two views of MNIST, saves the encoder (not the projector)
-#   "linear_probe"                : EncoderClassifier - that encoder FROZEN + a new head, Fashion-MNIST
-#   "finetune"                    : EncoderClassifier - that encoder + a new head, all weights, Fashion-MNIST
-#   "end_to_end"                  : NN - ResNet-18 from scratch on Fashion-MNIST
-# These train on the source dataset. The others use the target.
-PRETRAIN_MODES = ("pretrain", "pretrain_supervised", "pretrain_supervise_encoder", "pretrain_simclr")
-# These write the encoder file that linear_probe and finetune load. The later run overwrites it.
-# SimCLR writes the encoder only. The projection head stays out of that file.
-SAVE_ENCODER_MODES = ("pretrain", "pretrain_supervise_encoder", "pretrain_simclr")
-# Default when train.py is started with no --mode.
-# Choose from the command line instead of editing this list, for example:
-#   python train.py --mode pretrain
-#   python train.py --mode linear_probe finetune
-# pretrain_simclr is not in this list. It writes the same encoder file as pretrain:
-#   python train.py --mode pretrain_simclr
-#   python train.py --mode linear_probe
-MODES = ["pretrain", "linear_probe", "finetune", "end_to_end"]
+    # --- data
+    "batch_size": 256,
+    "train_fraction": 1.0,         # balanced fraction of the 90k train images (0.25 = proxy run)
+    "num_workers": 0,              # data is in memory as tensors, workers would only add overhead
 
-# SimCLR (model.SimCLR, losses in losses.py). The encoder is still LATENT_DIM wide.
-# The projector is thrown away after pretraining. The other batch rows are negatives,
-# so this batch is larger than BATCH_SIZE.
-# CONTRASTIVE_LOSS: "nt_xent" or "triplet".
-TEMPERATURE = 0.07  # NT-Xent
-TRIPLET_MARGIN = 0.2  # triplet loss
-PROJECTOR_DIM = 128  # g(h) width; its hidden layer is 4 times this, as in the tutorial
-SIMCLR_BATCH_SIZE = 256
-CONTRASTIVE_LOSS = "nt_xent"
+    # --- training
+    "max_epochs": 100,
+    "precision": "auto",           # "16-mixed" on GPU, "32-true" on CPU
+    "resume": True,                # continue from outputs/checkpoints/<run_name>/last.ckpt if present
+    "fast_dev_run": False,         # one batch through every step: a wiring test, not a real run
 
-SOURCE_DATASET = "MNIST"
-TARGET_DATASET = "FashionMNIST"
-N_TARGET_TRAIN = None  # None = all 50,000 Fashion-MNIST training images
-TARGET_NUM_EPOCHS = 3
-FINETUNE_LEARNING_RATE = 0.0001  # smaller lr, so we don't destroy the pretrained features
-ENCODER_PATH = "mnist_encoder.pt"  # written by pretrain, pretrain_supervise_encoder, and pretrain_simclr
+    # --- model: denoising autoencoder
+    "latent_dim": 64,
+    "learning_rate": 1e-3,
+    "weight_decay": 0.0,
+    "corruption": "gaussian",      # gaussian | mask | salt_pepper
+    "corruption_strength": 0.2,    # sigma / patch drop rate / pixel hit rate. 0 = vanilla AE
+
+    # --- representation monitoring
+    "knn_every_n_epochs": 5,       # the model-selection metric is logged this often
+}
+
+
+def load_config(yaml_path=None):
+    """Return DEFAULTS updated with the values in the YAML file (if given)."""
+    config = dict(DEFAULTS)
+    if yaml_path is not None:
+        with open(yaml_path) as file:
+            overrides = yaml.safe_load(file) or {}
+        unknown_keys = set(overrides) - set(DEFAULTS)
+        if unknown_keys:
+            # A typo like "latnt_dim" would otherwise silently run with the default.
+            raise ValueError(f"Unknown config keys in {yaml_path}: {sorted(unknown_keys)}")
+        config.update(overrides)
+    return config

@@ -1,4 +1,6 @@
-from pytorch_lightning.callbacks import EarlyStopping, Callback, TQDMProgressBar
+from pytorch_lightning.callbacks import Callback, TQDMProgressBar
+
+from evaluation import extract_features, knn_accuracy
 
 
 class ColabProgressBar(TQDMProgressBar):
@@ -15,66 +17,29 @@ class ColabProgressBar(TQDMProgressBar):
         return bar
 
 
-class MyPrintingCallback(Callback):
-    def __init__(self):
-        super().__init__()
+class KNNMonitor(Callback):
+    """Log validation k-NN accuracy of the encoder every few epochs.
 
-    def on_train_start(self, trainer, pl_module):
-        print("Starting to train!")
-
-    def on_train_end(self, trainer, pl_module):
-        print("Training is done.")
-
-
-class EpochMetricsCallback(Callback):
-    """Logs one point per epoch under "epoch/...", with the epoch number as the x-axis.
-
-    Lightning's own charts use the training step as the x-axis. Pretraining uses the
-    full training set; the target runs use fewer labeled images, so their curves
-    don't line up. With the epoch as the x-axis, all modes can be compared on one chart.
+    This is the model-selection metric of the assignment: hyperparameters are
+    chosen by representation quality (k-NN), not by reconstruction error. The bank
+    is the train subset the datamodule serves, the queries are the 10k validation
+    hold-out. No labels reach the encoder: they are only used for the neighbor vote.
     """
 
-    def _log_metrics(self, trainer, names):
-        metrics = {}
-        for name in names:
-            # with on_step=True Lightning stores the epoch value as "<name>_epoch"
-            value = trainer.callback_metrics.get(f"{name}_epoch", trainer.callback_metrics.get(name))
-            if value is not None:
-                metrics[f"epoch/{name}"] = value.item()
+    def __init__(self, every_n_epochs=5):
+        self.every_n_epochs = every_n_epochs
 
-        if metrics and trainer.logger is not None:
-            trainer.logger.log_metrics(metrics, step=trainer.current_epoch)
-
-    def on_train_epoch_end(self, trainer, pl_module):
-        self._log_metrics(
-            trainer,
-            [
-                "train_loss",
-                "train_accuracy",
-                "train_f1_score",
-                "train_pos_sim",
-                "train_neg_sim",
-                "train_acc_top1",
-                "train_acc_top5",
-                "train_acc_mean_pos",
-                "train_active",
-            ],
-        )
-
-    def on_validation_end(self, trainer, pl_module):
-        # Skip the sanity check and the extra trainer.validate() after training
-        if trainer.sanity_checking or trainer.state.fn != "fit":
+    def on_validation_epoch_end(self, trainer, pl_module):
+        if trainer.sanity_checking:
             return
-        self._log_metrics(
-            trainer,
-            [
-                "val_loss",
-                "val_accuracy",
-                "val_pos_sim",
-                "val_neg_sim",
-                "val_acc_top1",
-                "val_acc_top5",
-                "val_acc_mean_pos",
-                "val_active",
-            ],
-        )
+        epoch = trainer.current_epoch + 1
+        is_last_epoch = epoch == trainer.max_epochs
+        if epoch % self.every_n_epochs != 0 and not is_last_epoch:
+            return
+
+        datamodule = trainer.datamodule
+        bank_features, bank_labels = extract_features(pl_module.encoder, datamodule.train_eval_dataloader(), pl_module.device)
+        val_features, val_labels = extract_features(pl_module.encoder, datamodule.val_dataloader(), pl_module.device)
+        accuracy = knn_accuracy(bank_features, bank_labels, val_features, val_labels)
+        pl_module.log("val_knn_top1", accuracy["top1"], prog_bar=True)
+        pl_module.log("val_knn_top5", accuracy["top5"])
