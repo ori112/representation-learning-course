@@ -1,0 +1,6 @@
+# Timing run on Colab: 3 epochs of the proxy setting, k-NN every epoch.
+# train_seconds in results/speed_test.json / 3 = seconds per epoch including the k-NN pass.
+run_name: speed_test
+train_fraction: 0.25
+max_epochs: 3
+knn_every_n_epochs: 1
