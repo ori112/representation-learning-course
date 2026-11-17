@@ -58,6 +58,9 @@ def run(config):
 
     resume_from = os.path.join(checkpoint_dir, "last.ckpt")
     resume_from = resume_from if config["resume"] and os.path.exists(resume_from) else None
+    # Build the dataset cache first. trainer.fit would do it too, but then the first
+    # run in a fresh Colab session would count the download as training time.
+    datamodule.prepare_data()
     start_time = time.time()
     trainer.fit(model, datamodule=datamodule, ckpt_path=resume_from)
     train_seconds = time.time() - start_time
@@ -73,7 +76,8 @@ def run(config):
     os.makedirs(config["results_dir"], exist_ok=True)
     with open(os.path.join(config["results_dir"], f"{run_name}.json"), "w") as file:
         json.dump({"config": config, "metrics": metrics, "train_seconds": round(train_seconds, 1),
-                   "resumed": resume_from is not None}, file, indent=2)
+                   "device": torch.cuda.get_device_name(0) if use_gpu else "cpu",
+                   "precision": precision, "resumed": resume_from is not None}, file, indent=2)
     return metrics
 
 
