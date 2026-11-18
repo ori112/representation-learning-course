@@ -1,0 +1,9 @@
+run_name: dae_search_12
+train_fraction: 0.25
+max_epochs: 20
+knn_every_n_epochs: 5
+corruption: gaussian
+corruption_strength: 0.13
+latent_dim: 256
+learning_rate: 0.003
+weight_decay: 0.0001
