@@ -19,6 +19,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from callbacks import ColabProgressBar, KNNMonitor
 from config import load_config
 from datamodule import TinyImageNetDataModule
+from evaluate import run_evaluation
 from utils import build_model
 
 torch.set_float32_matmul_precision("medium")  # faster matmuls on modern GPUs, silences a Lightning warning
@@ -84,5 +85,6 @@ def run(config):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train one experiment from a YAML config.")
     parser.add_argument("--config", required=True, help="path to a YAML file that overrides config.DEFAULTS")
-    final_metrics = run(load_config(parser.parse_args().config))
+    config = load_config(parser.parse_args().config)
+    final_metrics = run_evaluation(config) if config["mode"] == "evaluate" else run(config)
     print("Final metrics:", final_metrics)

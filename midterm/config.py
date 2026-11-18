@@ -32,6 +32,13 @@ DEFAULTS = {
     "corruption": "gaussian",      # gaussian | mask | salt_pepper
     "corruption_strength": 0.2,    # sigma / patch drop rate / pixel hit rate. 0 = vanilla AE
 
+    # --- evaluation (mode "evaluate": measure a trained or random encoder, no training)
+    "encoder_path": None,          # outputs/encoders/<run>.pt to evaluate. None = random-init encoder baseline
+    "eval_split": "val",           # "val" while tuning. "test" only for the final numbers
+    "feature_layer": "bottleneck", # bottleneck = the Linear output h | conv = pooled conv map (which layer is h?)
+    "probe_seeds": [42],           # one linear probe per seed, reported as mean +- std
+    "probe_epochs": 50,
+
     # --- representation monitoring
     "knn_every_n_epochs": 5,       # the model-selection metric is logged this often
 }

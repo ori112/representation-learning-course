@@ -1,0 +1,6 @@
+# Wiring test: random-init encoder on 2% of train. Real baseline configs come later.
+run_name: eval_random_smoke
+mode: evaluate
+train_fraction: 0.02
+probe_epochs: 5
+probe_seeds: [42, 43]
