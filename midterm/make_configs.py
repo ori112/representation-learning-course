@@ -66,7 +66,31 @@ def make_seed_check(trials=(2, 15, 8), extra_seeds=(43, 44), folder="configs/par
             write_config(folder, f"dae_seedcheck_{trial:02d}_s{seed}", {**settings, "seed": seed})
 
 
+def make_full_runs(folder="configs/partA/final"):
+    """Full-size runs of the chosen DAE, its vanilla twin, and their evaluations.
+
+    The vanilla AE is the same model with corruption strength 0, so the only
+    difference to the DAE is the denoising objective. Evaluation runs are separate
+    configs (mode: evaluate) and sort after the training runs, so a loop over the
+    folder trains first and evaluates second.
+    """
+    chosen = {"corruption": "mask", "corruption_strength": 0.30, "latent_dim": 512,
+              "learning_rate": 1e-3, "weight_decay": 0.0}
+    full = {"train_fraction": 1.0, "max_epochs": 100, "knn_every_n_epochs": 10}
+    write_config(folder, "full_dae", {**full, **chosen})
+    write_config(folder, "full_ae", {**full, **chosen, "corruption_strength": 0.0})
+
+    evaluation = {"mode": "evaluate", "probe_seeds": [42, 43, 44], "latent_dim": chosen["latent_dim"]}
+    for model in ("dae", "ae"):
+        for layer in ("bottleneck", "conv"):  # conv = which-layer-is-h comparison
+            write_config(folder, f"full_eval_{model}_{layer}", {
+                **evaluation, "feature_layer": layer, "encoder_path": f"outputs/encoders/full_{model}.pt"})
+    for layer in ("bottleneck", "conv"):  # random-init encoder: the "no learning" floor
+        write_config(folder, f"full_eval_random_{layer}", {**evaluation, "feature_layer": layer})
+
+
 if __name__ == "__main__":
     make_dae_search()
+    make_full_runs()
     make_seed_check()
     print(f"Wrote {NUM_TRIALS} search configs and the seed-check configs under configs/partA/")
