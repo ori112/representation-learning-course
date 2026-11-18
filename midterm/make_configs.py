@@ -36,6 +36,8 @@ def make_dae_search(folder="configs/partA/search"):
     of them (here probably corruption and latent_dim) drive the result.
     """
     rng = random.Random(SEARCH_SEED)
+    # Note: with coarse choices, a config can be drawn twice. Trial 10 repeats trial 02,
+    # and the run reproduced trial 02's numbers exactly, so only 29 trials are distinct.
     for trial in range(NUM_TRIALS):
         corruption = rng.choice(list(STRENGTH_RANGE))
         low, high = STRENGTH_RANGE[corruption]
@@ -49,6 +51,22 @@ def make_dae_search(folder="configs/partA/search"):
         })
 
 
+def make_seed_check(trials=(2, 15, 8), extra_seeds=(43, 44), folder="configs/partA/seedcheck"):
+    """Rerun the best search trials with new seeds.
+
+    One seed on 10k validation images is noisy (about +-0.25 points), and the top trials
+    differ by less than that. Choosing on the mean of 3 seeds avoids picking a lucky run.
+    The original seed (42) is already in the search results.
+    """
+    for trial in trials:
+        with open(f"configs/partA/search/dae_search_{trial:02d}.yaml") as file:
+            settings = yaml.safe_load(file)
+        settings.pop("run_name")
+        for seed in extra_seeds:
+            write_config(folder, f"dae_seedcheck_{trial:02d}_s{seed}", {**settings, "seed": seed})
+
+
 if __name__ == "__main__":
     make_dae_search()
-    print(f"Wrote {NUM_TRIALS} configs to configs/partA/search/")
+    make_seed_check()
+    print(f"Wrote {NUM_TRIALS} search configs and the seed-check configs under configs/partA/")
