@@ -1,0 +1,10 @@
+start,label_pct,val_top1_mean,val_top1_std,n_seeds
+scratch,1,2.56,0.08,3
+scratch,10,7.35,0.3,3
+scratch,100,22.58,0.8,3
+ae,1,2.31,0.08,3
+ae,10,8.5,0.25,3
+ae,100,16.17,0.05,3
+dae,1,3.11,0.08,3
+dae,10,10.9,0.09,3
+dae,100,21.61,0.24,3
