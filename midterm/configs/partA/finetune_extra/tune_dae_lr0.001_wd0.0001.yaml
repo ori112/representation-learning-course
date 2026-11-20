@@ -1,0 +1,10 @@
+run_name: tune_dae_lr0.001_wd0.0001
+mode: finetune
+feature_layer: conv
+latent_dim: 512
+encoder_path: outputs/encoders/full_dae.pt
+train_fraction: 0.1
+max_epochs: 100
+learning_rate: 0.001
+encoder_learning_rate: 0.001
+weight_decay: 0.0001

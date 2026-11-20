@@ -110,8 +110,45 @@ def make_finetune_runs(folder="configs/partA/finetune"):
                 })
 
 
+def make_finetune_extras(folder="configs/partA/finetune_extra"):
+    """Two checks on the fine-tuning results, both on the pooled conv layer.
+
+    1. Seeds: the label-efficiency gaps (1-3 points) are small, so every conv run is
+       repeated with 2 more seeds. The seed changes head init and batch order, not the
+       class-balanced label subset, which stays identical across models and seeds.
+    2. Baseline tuning: at 10% labels, scratch and DAE get a small grid over learning rate
+       and weight decay (validation only), so neither side can be called undertuned.
+       The default combination was already run in make_finetune_runs, so it is skipped.
+    """
+    epochs_for_fraction = {0.01: 300, 0.1: 100, 1.0: 30}
+    starting_points = {"scratch": None, "ae": "outputs/encoders/full_ae.pt", "dae": "outputs/encoders/full_dae.pt"}
+    base = {"mode": "finetune", "feature_layer": "conv", "latent_dim": 512}
+
+    for model, encoder_path in starting_points.items():
+        for fraction, epochs in epochs_for_fraction.items():
+            for seed in (43, 44):
+                write_config(folder, f"ft_{model}_conv_{round(fraction * 100)}pct_s{seed}", {
+                    **base, "encoder_path": encoder_path, "train_fraction": fraction, "max_epochs": epochs,
+                    "seed": seed, "learning_rate": 1e-3,
+                    "encoder_learning_rate": 1e-3 if model == "scratch" else 1e-4})
+
+    # scratch moves everything at one rate. For a pretrained encoder the head rate stays 1e-3
+    # and the encoder rate is the one tuned.
+    for model, encoder_path, rates, default_rate in (
+            ("scratch", None, (3e-4, 1e-3, 3e-3), 1e-3), ("dae", "outputs/encoders/full_dae.pt", (1e-4, 3e-4, 1e-3), 1e-4)):
+        for rate in rates:
+            for weight_decay in (0.0, 1e-4, 1e-3):
+                if rate == default_rate and weight_decay == 0.0:
+                    continue
+                write_config(folder, f"tune_{model}_lr{rate:g}_wd{weight_decay:g}", {
+                    **base, "encoder_path": encoder_path, "train_fraction": 0.1, "max_epochs": 100,
+                    "learning_rate": rate if model == "scratch" else 1e-3,
+                    "encoder_learning_rate": rate, "weight_decay": weight_decay})
+
+
 if __name__ == "__main__":
     make_dae_search()
+    make_finetune_extras()
     make_finetune_runs()
     make_full_runs()
     make_seed_check()
