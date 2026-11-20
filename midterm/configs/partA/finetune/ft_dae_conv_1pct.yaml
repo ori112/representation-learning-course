@@ -1,0 +1,9 @@
+run_name: ft_dae_conv_1pct
+mode: finetune
+feature_layer: conv
+encoder_path: outputs/encoders/full_dae.pt
+latent_dim: 512
+train_fraction: 0.01
+max_epochs: 300
+learning_rate: 0.001
+encoder_learning_rate: 0.0001

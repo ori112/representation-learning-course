@@ -8,7 +8,7 @@ import yaml
 DEFAULTS = {
     # --- run identity and paths
     "run_name": "dae_default",
-    "mode": "pretrain_dae",        # which model train.py builds (see utils.build_model)
+    "mode": "pretrain_dae",        # pretrain_dae | finetune | evaluate (see utils.build_model / train.py)
     "seed": 42,                    # fixed seed: same init and data order on every rerun
     "data_dir": "dataset/",        # cached Tiny-ImageNet tensors live here
     "output_dir": "outputs",       # checkpoints, TensorBoard logs, saved encoders (put on Drive in Colab)
@@ -31,6 +31,10 @@ DEFAULTS = {
     "weight_decay": 0.0,
     "corruption": "gaussian",      # gaussian | mask | salt_pepper
     "corruption_strength": 0.2,    # sigma / patch drop rate / pixel hit rate. 0 = vanilla AE
+
+    # --- fine-tuning (mode "finetune"). encoder_path None = train from scratch (supervised baseline).
+    # train_fraction doubles as the label fraction here: 0.01 / 0.1 / 1.0 of the balanced train set.
+    "encoder_learning_rate": 1e-4, # gentle steps for pretrained weights. Set equal to learning_rate for scratch
 
     # --- evaluation (mode "evaluate": measure a trained or random encoder, no training)
     "encoder_path": None,          # outputs/encoders/<run>.pt to evaluate. None = random-init encoder baseline

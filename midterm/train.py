@@ -52,9 +52,8 @@ def run(config):
         callbacks=[
             # last.ckpt is what resume loads. save_top_k=0 skips the extra per-epoch copy.
             ModelCheckpoint(dirpath=checkpoint_dir, save_last=True, save_top_k=0),
-            KNNMonitor(every_n_epochs=config["knn_every_n_epochs"]),
             ColabProgressBar(refresh_rate=20),
-        ],
+        ] + ([KNNMonitor(every_n_epochs=config["knn_every_n_epochs"])] if config["mode"] == "pretrain_dae" else []),
     )
 
     resume_from = os.path.join(checkpoint_dir, "last.ckpt")
@@ -69,11 +68,17 @@ def run(config):
     if config["fast_dev_run"]:
         return {}  # wiring test only: nothing worth saving
 
-    # Keep only the encoder: the decoder is discarded after training.
-    os.makedirs(os.path.join(config["output_dir"], "encoders"), exist_ok=True)
-    torch.save(model.encoder.state_dict(), os.path.join(config["output_dir"], "encoders", f"{run_name}.pt"))
-
     metrics = {name: value.item() for name, value in trainer.callback_metrics.items()}
+    if config["mode"] == "finetune" and config["eval_split"] == "test":
+        trainer.test(model, datamodule=datamodule)  # the one allowed look at the test set
+        # trainer.test replaces callback_metrics, so merge instead of overwrite to keep the val numbers.
+        metrics.update({name: value.item() for name, value in trainer.callback_metrics.items()})
+
+    if config["mode"] == "pretrain_dae":
+        # Keep only the encoder: the decoder is discarded after training.
+        os.makedirs(os.path.join(config["output_dir"], "encoders"), exist_ok=True)
+        torch.save(model.encoder.state_dict(), os.path.join(config["output_dir"], "encoders", f"{run_name}.pt"))
+
     os.makedirs(config["results_dir"], exist_ok=True)
     with open(os.path.join(config["results_dir"], f"{run_name}.json"), "w") as file:
         json.dump({"config": config, "metrics": metrics, "train_seconds": round(train_seconds, 1),

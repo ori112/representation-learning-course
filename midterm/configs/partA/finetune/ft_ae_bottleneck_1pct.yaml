@@ -1,0 +1,9 @@
+run_name: ft_ae_bottleneck_1pct
+mode: finetune
+feature_layer: bottleneck
+encoder_path: outputs/encoders/full_ae.pt
+latent_dim: 512
+train_fraction: 0.01
+max_epochs: 300
+learning_rate: 0.001
+encoder_learning_rate: 0.0001

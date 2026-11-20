@@ -89,8 +89,30 @@ def make_full_runs(folder="configs/partA/final"):
         write_config(folder, f"full_eval_random_{layer}", {**evaluation, "feature_layer": layer})
 
 
+def make_finetune_runs(folder="configs/partA/finetune"):
+    """Fine-tune each encoder (and a from-scratch baseline) at 1%, 10%, 100% of the labels.
+
+    scratch = same architecture, random init: the supervised baseline. All variants share
+    one recipe; only the starting weights differ. Fewer labels means fewer steps per epoch,
+    so the epoch count grows as the fraction shrinks to keep the number of updates similar.
+    Pretrained encoders get a gentler encoder learning rate (1e-4) than the new head (1e-3).
+    """
+    epochs_for_fraction = {0.01: 300, 0.1: 100, 1.0: 30}
+    starting_points = {"scratch": None, "ae": "outputs/encoders/full_ae.pt", "dae": "outputs/encoders/full_dae.pt"}
+    for model, encoder_path in starting_points.items():
+        for layer in ("bottleneck", "conv"):
+            for fraction, epochs in epochs_for_fraction.items():
+                write_config(folder, f"ft_{model}_{layer}_{round(fraction * 100)}pct", {
+                    "mode": "finetune", "feature_layer": layer, "encoder_path": encoder_path,
+                    "latent_dim": 512, "train_fraction": fraction, "max_epochs": epochs,
+                    "learning_rate": 1e-3,
+                    "encoder_learning_rate": 1e-3 if model == "scratch" else 1e-4,
+                })
+
+
 if __name__ == "__main__":
     make_dae_search()
+    make_finetune_runs()
     make_full_runs()
     make_seed_check()
     print(f"Wrote {NUM_TRIALS} search configs and the seed-check configs under configs/partA/")
