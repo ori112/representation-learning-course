@@ -1,0 +1,7 @@
+model,layer,knn_top1,knn_top5,probe_top1_mean,probe_top5_mean
+dae,bottleneck,23.64,43.54,20.17,43.27
+dae,conv,24.3,47.0,30.62,57.95
+ae,bottleneck,20.68,40.6,17.15,38.39
+ae,conv,18.64,39.58,21.08,44.95
+random,bottleneck,18.2,38.1,21.9,46.48
+random,conv,20.14,41.16,27.27,53.81
