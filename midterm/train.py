@@ -20,6 +20,7 @@ from callbacks import ColabProgressBar, KNNMonitor
 from config import load_config
 from datamodule import build_datamodule
 from evaluate import run_evaluation
+from robustness import run_robustness
 from utils import build_model
 
 torch.set_float32_matmul_precision("medium")  # faster matmuls on modern GPUs, silences a Lightning warning
@@ -86,5 +87,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train one experiment from a YAML config.")
     parser.add_argument("--config", required=True, help="path to a YAML file that overrides config.DEFAULTS")
     config = load_config(parser.parse_args().config)
-    final_metrics = run_evaluation(config) if config["mode"] == "evaluate" else run(config)
+    if config["mode"] == "evaluate":
+        final_metrics = run_evaluation(config)
+    elif config["mode"] == "robustness":
+        final_metrics = run_robustness(config)
+    else:
+        final_metrics = run(config)
     print("Final metrics:", final_metrics)

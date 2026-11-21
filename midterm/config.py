@@ -8,7 +8,7 @@ import yaml
 DEFAULTS = {
     # --- run identity and paths
     "run_name": "dae_default",
-    "mode": "pretrain_dae",        # pretrain_dae | finetune | evaluate (see utils.build_model / train.py)
+    "mode": "pretrain_dae",        # pretrain_dae | finetune | evaluate | robustness (see utils.build_model / train.py)
     "seed": 42,                    # fixed seed: same init and data order on every rerun
     "data_dir": "dataset/",        # cached Tiny-ImageNet tensors live here
     "output_dir": "outputs",       # checkpoints, TensorBoard logs, saved encoders (put on Drive in Colab)

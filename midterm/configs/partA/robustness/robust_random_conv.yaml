@@ -1,0 +1,9 @@
+run_name: robust_random_conv
+mode: robustness
+feature_layer: conv
+encoder_path: null
+latent_dim: 512
+probe_seeds:
+- 42
+- 43
+- 44

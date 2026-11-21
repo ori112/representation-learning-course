@@ -106,10 +106,9 @@ def top_k_accuracy(model, features, labels):
             "top5": (top5 == labels[:, None]).any(dim=1).float().mean().item()}
 
 
-def linear_probe_accuracy(train_features, train_labels, test_features, test_labels,
-                          num_classes=200, epochs=50, batch_size=1024, learning_rate=1e-3,
-                          weight_decay=1e-4, seed=42):
-    """Train a linear probe on train features, return its top-1/top-5 on test features.
+def train_linear_probe(train_features, train_labels, num_classes=200, epochs=50, batch_size=1024,
+                       learning_rate=1e-3, weight_decay=1e-4, seed=42):
+    """Train a linear probe on cached train features and return the fitted LinearProbe.
 
     The seed controls the probe's init and batch order, so repeating with several
     seeds gives the mean +- std the report needs.
@@ -123,4 +122,10 @@ def linear_probe_accuracy(train_features, train_labels, test_features, test_labe
                          enable_checkpointing=False, enable_progress_bar=False,
                          enable_model_summary=False)
     trainer.fit(probe, loader)
+    return probe
+
+
+def linear_probe_accuracy(train_features, train_labels, test_features, test_labels, **probe_settings):
+    """Train a linear probe on train features, return its top-1/top-5 on test features."""
+    probe = train_linear_probe(train_features, train_labels, **probe_settings)
     return top_k_accuracy(probe, test_features.float(), test_labels)

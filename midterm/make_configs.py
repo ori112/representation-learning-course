@@ -174,6 +174,19 @@ def make_transfer_runs(folder="configs/partA/transfer"):
                     "encoder_learning_rate": 1e-3 if model == "scratch" else 1e-4})
 
 
+def make_robustness_runs(folder="configs/partA/robustness"):
+    """Probe accuracy under corrupted eval images, for the frozen encoders (pooled conv layer).
+
+    Three encoders: DAE, vanilla AE, random-init. Supervised-from-scratch is left out because
+    the fine-tuning runs do not save their weights and a probe on it is not the same protocol.
+    """
+    starting_points = {"dae": "outputs/encoders/full_dae.pt", "ae": "outputs/encoders/full_ae.pt", "random": None}
+    for model, encoder_path in starting_points.items():
+        write_config(folder, f"robust_{model}_conv", {
+            "mode": "robustness", "feature_layer": "conv", "encoder_path": encoder_path,
+            "latent_dim": 512, "probe_seeds": [42, 43, 44]})
+
+
 if __name__ == "__main__":
     make_dae_search()
     make_finetune_extras()
@@ -181,4 +194,5 @@ if __name__ == "__main__":
     make_full_runs()
     make_seed_check()
     make_transfer_runs()
+    make_robustness_runs()
     print(f"Wrote {NUM_TRIALS} search configs and the other grids under configs/partA/")
