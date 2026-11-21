@@ -1,0 +1,10 @@
+run_name: cifar_eval_ae_conv
+dataset: cifar100
+latent_dim: 512
+mode: evaluate
+probe_seeds:
+- 42
+- 43
+- 44
+feature_layer: conv
+encoder_path: outputs/encoders/full_ae.pt

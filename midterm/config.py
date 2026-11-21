@@ -15,6 +15,7 @@ DEFAULTS = {
     "results_dir": "results",      # small metric JSONs, committed to git
 
     # --- data
+    "dataset": "tiny_imagenet",    # tiny_imagenet | cifar100 (transfer: evaluate / finetune on 64x64 CIFAR-100)
     "batch_size": 256,
     "train_fraction": 1.0,         # balanced fraction of the 90k train images (0.25 = proxy run)
     "num_workers": 0,              # data is in memory as tensors, workers would only add overhead

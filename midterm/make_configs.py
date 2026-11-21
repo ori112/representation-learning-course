@@ -146,10 +146,39 @@ def make_finetune_extras(folder="configs/partA/finetune_extra"):
                     "encoder_learning_rate": rate, "weight_decay": weight_decay})
 
 
+def make_transfer_runs(folder="configs/partA/transfer"):
+    """Full protocol on the transfer dataset (CIFAR-100): the same encoders, nothing retrained.
+
+    The encoders were pre-trained on Tiny-ImageNet only. Here they are (1) frozen and measured
+    with k-NN and a linear probe, and (2) fine-tuned at 1/10/100% of the CIFAR labels next to
+    a from-scratch baseline. Fine-tuning uses the pooled conv layer (the chosen h) and 3 seeds,
+    with the same recipe as the Tiny-ImageNet runs. Eval configs sort before the ft_ ones.
+    """
+    base = {"dataset": "cifar100", "latent_dim": 512}
+    starting_points = {"scratch": None, "ae": "outputs/encoders/full_ae.pt", "dae": "outputs/encoders/full_dae.pt"}
+
+    for model in ("dae", "ae", "random"):
+        for layer in ("bottleneck", "conv"):
+            settings = {**base, "mode": "evaluate", "probe_seeds": [42, 43, 44], "feature_layer": layer}
+            if model != "random":
+                settings["encoder_path"] = starting_points[model]
+            write_config(folder, f"cifar_eval_{model}_{layer}", settings)
+
+    epochs_for_fraction = {0.01: 300, 0.1: 100, 1.0: 30}
+    for model, encoder_path in starting_points.items():
+        for fraction, epochs in epochs_for_fraction.items():
+            for seed in (42, 43, 44):
+                write_config(folder, f"cifar_ft_{model}_conv_{round(fraction * 100)}pct_s{seed}", {
+                    **base, "mode": "finetune", "feature_layer": "conv", "encoder_path": encoder_path,
+                    "train_fraction": fraction, "max_epochs": epochs, "seed": seed, "learning_rate": 1e-3,
+                    "encoder_learning_rate": 1e-3 if model == "scratch" else 1e-4})
+
+
 if __name__ == "__main__":
     make_dae_search()
     make_finetune_extras()
     make_finetune_runs()
     make_full_runs()
     make_seed_check()
-    print(f"Wrote {NUM_TRIALS} search configs and the seed-check configs under configs/partA/")
+    make_transfer_runs()
+    print(f"Wrote {NUM_TRIALS} search configs and the other grids under configs/partA/")

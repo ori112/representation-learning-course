@@ -18,7 +18,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 from callbacks import ColabProgressBar, KNNMonitor
 from config import load_config
-from datamodule import TinyImageNetDataModule
+from datamodule import build_datamodule
 from evaluate import run_evaluation
 from utils import build_model
 
@@ -34,12 +34,7 @@ def run(config):
     use_gpu = torch.cuda.is_available()
     precision = ("16-mixed" if use_gpu else "32-true") if config["precision"] == "auto" else config["precision"]
 
-    datamodule = TinyImageNetDataModule(
-        data_dir=config["data_dir"],
-        batch_size=config["batch_size"],
-        train_fraction=config["train_fraction"],
-        num_workers=config["num_workers"],
-    )
+    datamodule = build_datamodule(config)
     model = build_model(config)
     trainer = pl.Trainer(
         logger=TensorBoardLogger(os.path.join(config["output_dir"], "tb_logs"), name=run_name, default_hp_metric=False),

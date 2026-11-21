@@ -1,5 +1,5 @@
-"""Tiny-ImageNet data: one-time cache to uint8 tensors, seeded splits, and the
-LightningDataModule that serves them."""
+"""Tiny-ImageNet and CIFAR-100 data: one-time cache to uint8 tensors, seeded splits,
+and the LightningDataModules that serve them."""
 import os
 
 import numpy as np
@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 SPLIT_SEED = 42  # same seed everywhere, so every model sees the same splits
+NUM_CLASSES = {"tiny_imagenet": 200, "cifar100": 100}
 
 
 def load_tiny_imagenet(cache_dir):
@@ -32,6 +33,35 @@ def load_tiny_imagenet(cache_dir):
             "images": torch.from_numpy(images).permute(0, 3, 1, 2).contiguous(),  # [N,3,64,64] uint8
             "labels": torch.tensor(split["label"], dtype=torch.long),
         }
+    os.makedirs(cache_dir, exist_ok=True)
+    torch.save(cached, cache_path)
+    return cached
+
+
+def load_cifar100_at_64(cache_dir):
+    """Return CIFAR-100 as 64x64 uint8 tensors, in the same layout as load_tiny_imagenet.
+
+    CIFAR-100 is the transfer dataset. Its images are 32x32, so they are upsampled to 64x64
+    (bilinear) to fit the encoder, which was built for Tiny-ImageNet. The official test split
+    is stored under "valid" so both datasets expose the same keys.
+    """
+    cache_path = os.path.join(cache_dir, "cifar100_64_uint8.pt")
+    if os.path.exists(cache_path):
+        return torch.load(cache_path)
+
+    import torch.nn.functional as functional
+    from torchvision.datasets import CIFAR100  # imported here so Tiny-ImageNet runs skip it
+
+    cached = {}
+    for split_name, is_train in (("train", True), ("valid", False)):
+        dataset = CIFAR100(root=cache_dir, train=is_train, download=True)
+        images = torch.from_numpy(dataset.data).permute(0, 3, 1, 2).contiguous()  # [N,3,32,32] uint8
+        resized = torch.cat([
+            functional.interpolate(chunk.float(), size=64, mode="bilinear", align_corners=False)
+            .round().clamp(0, 255).to(torch.uint8)
+            for chunk in images.split(5000)  # chunked: a float copy of all 50k images is 2.4 GB
+        ])
+        cached[split_name] = {"images": resized, "labels": torch.tensor(dataset.targets, dtype=torch.long)}
     os.makedirs(cache_dir, exist_ok=True)
     torch.save(cached, cache_path)
     return cached
@@ -91,15 +121,21 @@ class TinyImageNetDataModule(pl.LightningDataModule):
         # and no speed-up. Keep 0 unless a profile says otherwise.
         self.num_workers = num_workers
 
+    holdout_per_class = 50
+
+    def load_cache(self):
+        """Return {"train": {...}, "valid": {...}} uint8 tensors. Subclasses swap the dataset."""
+        return load_tiny_imagenet(self.data_dir)
+
     def prepare_data(self):
         # Runs once on one process: download and build the cache.
-        load_tiny_imagenet(self.data_dir)
+        self.load_cache()
 
     def setup(self, stage=None):
-        cached = load_tiny_imagenet(self.data_dir)
+        cached = self.load_cache()
         train_images, train_labels = cached["train"]["images"], cached["train"]["labels"]
 
-        train_pool, holdout = split_train_holdout(train_labels)
+        train_pool, holdout = split_train_holdout(train_labels, self.holdout_per_class)
         # The fraction is taken from the train pool only, so val images never leak in.
         train_indices = balanced_label_subset(train_labels, train_pool, self.train_fraction)
 
@@ -140,3 +176,25 @@ class TinyImageNetDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return self._loader(self.test_ds, shuffle=False)
+
+
+class Cifar100DataModule(TinyImageNetDataModule):
+    """CIFAR-100 resized to 64x64: the transfer dataset.
+
+    Same protocol as Tiny-ImageNet: 50 images per class (5k) held out of the 50k train
+    images for validation, the official 10k test split for final numbers only, and the
+    same balanced label fractions. The encoder is pre-trained on Tiny-ImageNet, never on this.
+    """
+
+    def load_cache(self):
+        return load_cifar100_at_64(self.data_dir)
+
+
+def build_datamodule(config):
+    """Create the DataModule named by config["dataset"] (tiny_imagenet | cifar100)."""
+    datamodules = {"tiny_imagenet": TinyImageNetDataModule, "cifar100": Cifar100DataModule}
+    if config["dataset"] not in datamodules:
+        raise ValueError(f"Unknown dataset: {config['dataset']}")
+    return datamodules[config["dataset"]](
+        data_dir=config["data_dir"], batch_size=config["batch_size"],
+        train_fraction=config["train_fraction"], num_workers=config["num_workers"])

@@ -12,7 +12,7 @@ import pytorch_lightning as pl
 import torch
 from torch import nn
 
-from datamodule import TinyImageNetDataModule
+from datamodule import NUM_CLASSES, build_datamodule
 from evaluation import extract_features, knn_accuracy, linear_probe_accuracy
 from model import build_encoder
 
@@ -36,9 +36,7 @@ def run_evaluation(config):
     pl.seed_everything(config["seed"], workers=True)  # also fixes the random-init weights
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    datamodule = TinyImageNetDataModule(data_dir=config["data_dir"], batch_size=config["batch_size"],
-                                        train_fraction=config["train_fraction"],
-                                        num_workers=config["num_workers"])
+    datamodule = build_datamodule(config)
     datamodule.prepare_data()
     datamodule.setup()
 
@@ -51,9 +49,10 @@ def run_evaluation(config):
     train_features, train_labels = extract_features(extractor, datamodule.train_eval_dataloader(), device)
     eval_features, eval_labels = extract_features(extractor, eval_loader, device)
 
-    knn = knn_accuracy(train_features, train_labels, eval_features, eval_labels)
+    num_classes = NUM_CLASSES[config["dataset"]]
+    knn = knn_accuracy(train_features, train_labels, eval_features, eval_labels, num_classes=num_classes)
     probes = [linear_probe_accuracy(train_features, train_labels, eval_features, eval_labels,
-                                    epochs=config["probe_epochs"], seed=seed)
+                                    num_classes=num_classes, epochs=config["probe_epochs"], seed=seed)
               for seed in config["probe_seeds"]]
     probe_top1 = [probe["top1"] for probe in probes]
     metrics = {

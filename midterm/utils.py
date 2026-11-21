@@ -1,5 +1,6 @@
 import torch
 
+from datamodule import NUM_CLASSES
 from classifier import EncoderClassifier
 from model import DenoisingAutoEncoder, build_encoder
 
@@ -21,6 +22,7 @@ def build_model(config):
         return EncoderClassifier(
             encoder,
             feature_layer=config["feature_layer"],
+            num_classes=NUM_CLASSES[config["dataset"]],
             learning_rate=config["learning_rate"],
             encoder_learning_rate=config["encoder_learning_rate"],
             weight_decay=config["weight_decay"],
