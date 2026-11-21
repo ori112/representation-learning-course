@@ -42,3 +42,37 @@ def plot_recon_vs_knn(rows, save_path=None):
     if save_path:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
     return fig
+
+
+def plot_label_efficiency(summary_csvs, save_path=None):
+    """Fine-tuning accuracy vs label fraction, one panel per dataset (required A4 figure).
+
+    summary_csvs maps a panel title to a 3-seed summary CSV (start, label_pct, mean, std).
+    Error bars are the std over 3 seeds. The x axis is logarithmic because the fractions
+    are 1%, 10%, 100%. The supervised-from-scratch line is the reference: a pretrained
+    start is useful where its curve sits above it.
+    """
+    import csv
+
+    colors = {"scratch": "tab:gray", "ae": "tab:green", "dae": "tab:red"}
+    labels = {"scratch": "supervised from scratch", "ae": "vanilla AE init", "dae": "DAE init"}
+    fig, axes = plt.subplots(1, len(summary_csvs), figsize=(5.2 * len(summary_csvs), 4.2), sharey=False)
+    for ax, (title, csv_path) in zip(axes, summary_csvs.items()):
+        with open(csv_path) as file:
+            rows = list(csv.DictReader(file))
+        for start, color in colors.items():
+            points = sorted((float(row["label_pct"]), float(row["val_top1_mean"]), float(row["val_top1_std"]))
+                            for row in rows if row["start"] == start)
+            ax.errorbar([p[0] for p in points], [p[1] for p in points], yerr=[p[2] for p in points],
+                        marker="o", capsize=3, color=color, label=labels[start])
+        ax.set_xscale("log")
+        ax.set_xticks([1, 10, 100])
+        ax.set_xticklabels(["1%", "10%", "100%"])
+        ax.set_xlabel("fraction of labels")
+        ax.set_ylabel("validation top-1 (%)")
+        ax.set_title(title)
+        ax.grid(alpha=0.3)
+        ax.legend()
+    if save_path:
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    return fig
