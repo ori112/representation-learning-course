@@ -1,8 +1,0 @@
-run_name: full_eval_random_bottleneck
-mode: evaluate
-probe_seeds:
-- 42
-- 43
-- 44
-latent_dim: 512
-feature_layer: bottleneck

@@ -1,9 +1,0 @@
-run_name: full_eval_dae_bottleneck
-mode: evaluate
-probe_seeds:
-- 42
-- 43
-- 44
-latent_dim: 512
-feature_layer: bottleneck
-encoder_path: outputs/encoders/final_dae.pt

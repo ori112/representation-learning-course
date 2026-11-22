@@ -45,7 +45,7 @@ DEFAULTS = {
     # --- evaluation (mode "evaluate": measure a trained or random encoder, no training)
     "encoder_path": None,          # outputs/encoders/<run>.pt to evaluate. None = random-init encoder baseline
     "eval_split": "val",           # "val" while tuning. "test" only for the final numbers
-    "feature_layer": "bottleneck", # bottleneck = the Linear output h | conv = pooled conv map (which layer is h?)
+    "feature_layer": "conv",       # which layer is h: conv = pooled conv map (our choice, see report) | bottleneck = the Linear output
     "probe_seeds": [42],           # one linear probe per seed, reported as mean +- std
     "probe_epochs": 50,
 

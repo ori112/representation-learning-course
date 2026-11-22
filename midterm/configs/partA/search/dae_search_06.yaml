@@ -2,6 +2,7 @@ run_name: dae_search_06
 train_fraction: 0.25
 max_epochs: 20
 knn_every_n_epochs: 5
+feature_layer: conv
 corruption: mask
 corruption_strength: 0.47
 latent_dim: 128

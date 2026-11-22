@@ -74,6 +74,22 @@ def knn_accuracy(bank_features, bank_labels, query_features, query_labels,
     return {"top1": correct_top1 / len(queries), "top5": correct_top5 / len(queries)}
 
 
+def knn_by_layer(encoder, datamodule, device, layers=("bottleneck", "conv")):
+    """Validation k-NN of an encoder on each candidate feature layer: {layer: {"top1", "top5"}}.
+
+    The bank is the train images the datamodule serves, the queries are the 10k validation
+    hold-out. Used during pre-training (KNNMonitor) and once at the end of a run, so the search
+    itself shows which layer makes the better representation h.
+    """
+    results = {}
+    for layer in layers:
+        extractor = build_feature_extractor(encoder, layer)
+        bank_features, bank_labels = extract_features(extractor, datamodule.train_eval_dataloader(), device)
+        val_features, val_labels = extract_features(extractor, datamodule.val_dataloader(), device)
+        results[layer] = knn_accuracy(bank_features, bank_labels, val_features, val_labels)
+    return results
+
+
 class LinearProbe(pl.LightningModule):
     """One linear layer on frozen, pre-extracted features.
 

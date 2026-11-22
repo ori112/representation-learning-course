@@ -19,7 +19,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from callbacks import ColabProgressBar, KNNMonitor
 from config import load_config
 from datamodule import build_datamodule
-from evaluation import extract_features, knn_accuracy, run_evaluation
+from evaluation import knn_by_layer, run_evaluation
 from robustness import run_robustness
 from utils import build_model, parse_args
 
@@ -47,7 +47,7 @@ def run(config):
         ColabProgressBar(refresh_rate=20),
     ]
     if config["mode"] == "pretrain_dae":
-        callbacks.append(KNNMonitor(every_n_epochs=config["knn_every_n_epochs"]))
+        callbacks.append(KNNMonitor(every_n_epochs=config["knn_every_n_epochs"], feature_layer=config["feature_layer"]))
     best_checkpoint = None
     if config["early_stopping_patience"] is not None:
         monitor, direction = STOP_METRIC[config["mode"]]
@@ -93,10 +93,10 @@ def run(config):
         if config["mode"] == "pretrain_dae":
             # KNNMonitor only runs every few epochs, so measure the best-epoch encoder directly.
             device = "cuda" if use_gpu else "cpu"
-            bank_features, bank_labels = extract_features(model.encoder, datamodule.train_eval_dataloader(), device)
-            val_features, val_labels = extract_features(model.encoder, datamodule.val_dataloader(), device)
-            knn = knn_accuracy(bank_features, bank_labels, val_features, val_labels)
-            metrics["val_knn_top1"], metrics["val_knn_top5"] = knn["top1"], knn["top5"]
+            for layer, accuracy in knn_by_layer(model.encoder, datamodule, device).items():
+                metrics[f"val_knn_top1_{layer}"] = accuracy["top1"]
+                if layer == config["feature_layer"]:
+                    metrics["val_knn_top1"], metrics["val_knn_top5"] = accuracy["top1"], accuracy["top5"]
     if config["mode"] == "finetune" and config["eval_split"] == "test":
         trainer.test(model, datamodule=datamodule)  # the one allowed look at the test set
         # trainer.test replaces callback_metrics, so merge instead of overwrite to keep the val numbers.
