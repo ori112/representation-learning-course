@@ -1,11 +1,12 @@
-"""Aggregate results/*.json into the small CSV tables in summaries/.
+"""Aggregate result JSONs into the small CSV tables in summaries/.
 
-    uv run python -m scripts.summarize                 # reads results/, writes summaries/
-    uv run python -m scripts.summarize --out /tmp/chk  # write elsewhere, to diff against summaries/
+    uv run python -m scripts.summarize                                   # results/ -> summaries/
+    uv run python -m scripts.summarize --results final_results --out summaries
 
 Every number in the report's tables and plots comes from these CSVs, and every CSV comes from
 a result JSON written by train.py, so the chain config -> JSON -> CSV -> figure can be rerun.
-(per_class_knn, robustness_feature_shift are written by scripts/interpret.py and scale_check.py.)
+All accuracies are in percent. (per_class_knn and robustness_feature_shift are written by
+scripts/interpret.py and scripts/scale_check.py.)
 """
 import argparse
 import csv
@@ -15,16 +16,16 @@ import os
 import re
 import statistics
 
-LAYER_NAME = {"conv": "conv_pooled"}  # name used in the Tiny-ImageNet table
+STARTS = ("scratch", "ae", "dae")
+DATASETS = {"tiny_imagenet": "", "cifar100": "cifar_"}   # run-name prefix of the transfer runs
 
 
-def load_metrics(results_dir):
-    """{run_name: metrics dict}, plus the config of each run."""
+def load_runs(results_dir):
+    """{run_name: {config, metrics, ...}} for every result JSON in the folder."""
     runs = {}
     for path in glob.glob(os.path.join(results_dir, "*.json")):
         with open(path) as file:
-            content = json.load(file)
-        runs[os.path.basename(path)[:-5]] = content
+            runs[os.path.basename(path)[:-5]] = json.load(file)
     return runs
 
 
@@ -37,173 +38,166 @@ def write_csv(out_dir, name, header, rows):
     print(f"wrote {name}: {len(rows)} rows")
 
 
+def percent(value, digits=2):
+    return round(100 * value, digits)
+
+
 def search_tables(runs, out_dir):
-    """Random-search trials, and the top trials repeated with extra seeds."""
+    """Random-search trials and the multi-seed repeat of the best ones (validation, proxy setting)."""
     rows = []
     for name in sorted(runs):
         match = re.fullmatch(r"dae_search_(\d+)", name)
         if match:
-            config, metrics = runs[name]["config"], runs[name]["metrics"]
-            rows.append([int(match[1]), config["corruption"], f"{config['corruption_strength']:.2f}", config["latent_dim"],
-                         config["learning_rate"], config["weight_decay"], f"{metrics['val_recon_loss']:.5f}",
-                         f"{metrics['val_knn_top1']:.4f}", f"{metrics['val_knn_top5']:.4f}"])
+            c, m = runs[name]["config"], runs[name]["metrics"]
+            rows.append([int(match[1]), c["corruption"], c["corruption_strength"], c["latent_dim"], c["learning_rate"],
+                         c["weight_decay"], round(m["val_recon_loss"], 5), percent(m["val_knn_top1"]),
+                         percent(m["val_knn_top5"]), percent(m["val_knn_top1_bottleneck"]), percent(m["val_knn_top1_conv"])])
     write_csv(out_dir, "dae_search_summary.csv",
               ["trial", "corruption", "corruption_strength", "latent_dim", "learning_rate", "weight_decay",
-               "val_recon_loss", "val_knn_top1", "val_knn_top5"], rows)
+               "val_recon_loss", "val_knn_top1_h", "val_knn_top5_h", "val_knn_top1_bottleneck", "val_knn_top1_conv"], rows)
 
-    seed_rows = []
-    for name in sorted(runs):
-        match = re.fullmatch(r"dae_seedcheck_(\d+)_s(\d+)", name)
-        if match:
-            metrics = runs[name]["metrics"]
-            seed_rows.append([int(match[1]), int(match[2]), f"{metrics['val_recon_loss']:.5f}",
-                              f"{metrics['val_knn_top1']:.4f}", f"{metrics['val_knn_top5']:.4f}"])
-            # the original seed (42) of this trial is the search run itself
-    for trial in sorted({row[0] for row in seed_rows}):
-        metrics = runs[f"dae_search_{trial:02d}"]["metrics"]
-        seed_rows.append([trial, 42, f"{metrics['val_recon_loss']:.5f}",
-                          f"{metrics['val_knn_top1']:.4f}", f"{metrics['val_knn_top5']:.4f}"])
-    trial_order = {2: 0, 15: 1, 8: 2}  # the order of make_seed_check: best first
-    write_csv(out_dir, "dae_seedcheck_summary.csv", ["trial", "seed", "val_recon_loss", "val_knn_top1", "val_knn_top5"],
-              sorted(seed_rows, key=lambda row: (trial_order.get(row[0], row[0]), row[1])))
-
-
-def frozen_tables(runs, out_dir):
-    """k-NN and probe on frozen encoders: Tiny-ImageNet (full_eval_*) and CIFAR-100 (cifar_eval_*)."""
+    repeated = sorted({int(re.fullmatch(r"dae_seedcheck_(\d+)_s\d+", n)[1])
+                       for n in runs if re.fullmatch(r"dae_seedcheck_(\d+)_s\d+", n)})
     rows = []
-    for model in ("random", "ae", "dae"):
-        for layer in ("bottleneck", "conv"):
-            name = f"full_eval_{model}_{layer}"
-            if name in runs:
-                m = runs[name]["metrics"]
-                rows.append([model, LAYER_NAME.get(layer, layer), int(m["feature_dim"]), f"{m['knn_top1']:.4f}",
-                             f"{m['knn_top5']:.4f}", f"{m['probe_top1_mean']:.4f}", f"{m['probe_top1_std']:.4f}",
-                             f"{m['probe_top5_mean']:.4f}"])
-    write_csv(out_dir, "partA_full_val_summary.csv",
-              ["model", "layer", "feature_dim", "knn_top1", "knn_top5", "probe_top1_mean", "probe_top1_std",
-               "probe_top5_mean"], rows)
+    for trial in repeated:
+        names = [(42, f"dae_search_{trial:02d}")] + [(int(n.rsplit("_s", 1)[1]), n) for n in sorted(runs)
+                                                     if n.startswith(f"dae_seedcheck_{trial:02d}_s")]
+        for seed, name in names:
+            m = runs[name]["metrics"]
+            rows.append([trial, seed, round(m["val_recon_loss"], 5), percent(m["val_knn_top1"]),
+                         percent(m["val_knn_top1_bottleneck"]), percent(m["val_knn_top1_conv"])])
+    write_csv(out_dir, "dae_seedcheck_summary.csv",
+              ["trial", "seed", "val_recon_loss", "val_knn_top1_h", "val_knn_top1_bottleneck", "val_knn_top1_conv"], rows)
 
+
+def seed_suffix(seed):
+    return "" if seed == 42 else f"_s{seed}"
+
+
+def mean_std(values):
+    """Mean and sample std (n-1) of a list; the std is 0 for a single value."""
+    return statistics.mean(values), (statistics.stdev(values) if len(values) > 1 else 0.0)
+
+
+def pretrain_table(runs, out_dir):
+    """The final pre-training runs (3 seeds each): how long they trained and where they ended."""
     rows = []
-    for model in ("dae", "ae", "random"):
-        for layer in ("bottleneck", "conv"):
-            name = f"cifar_eval_{model}_{layer}"
-            if name in runs:
-                m = runs[name]["metrics"]
-                rows.append([model, layer] + [round(100 * m[key], 2) for key in
-                                              ("knn_top1", "knn_top5", "probe_top1_mean", "probe_top5_mean")])
-    write_csv(out_dir, "cifar100_frozen_val_summary.csv",
-              ["model", "layer", "knn_top1", "knn_top5", "probe_top1_mean", "probe_top5_mean"], rows)
+    for model in ("dae", "ae"):
+        for seed in (42, 43, 44):
+            run = runs.get(f"final_{model}{seed_suffix(seed)}")
+            if run:
+                m, c = run["metrics"], run["config"]
+                rows.append([model, seed, c["corruption"], c["corruption_strength"], c["latent_dim"], m["epochs_trained"],
+                             m["best_epoch"], round(m["val_recon_loss"], 5), percent(m["val_knn_top1_bottleneck"]),
+                             percent(m["val_knn_top1_conv"]), run["train_seconds"]])
+    write_csv(out_dir, "pretrain_summary.csv",
+              ["model", "seed", "corruption", "corruption_strength", "latent_dim", "epochs_trained", "best_epoch",
+               "val_recon_loss", "val_knn_top1_bottleneck", "val_knn_top1_conv", "train_seconds"], rows)
 
 
-def finetune_tables(runs, out_dir):
-    """Fine-tuning: every Tiny-ImageNet run, the 3-seed means, the 10% tuning grid, and CIFAR-100."""
+def frozen_table(runs, out_dir, split):
+    """k-NN and linear probe of frozen encoders: mean and std over the 3 pre-training seeds (each with 3 probes)."""
     rows = []
-    for start in ("scratch", "ae", "dae"):
-        for layer in ("bottleneck", "conv"):
-            for pct in (1, 10, 100):
-                name = f"ft_{start}_{layer}_{pct}pct"
-                if name in runs:
-                    m = runs[name]["metrics"]
-                    rows.append([start, layer, f"{pct / 100:.2f}", f"{m['val_top1']:.4f}", f"{m['val_top5']:.4f}",
-                                 f"{m['train_loss']:.5f}"])
-    write_csv(out_dir, "partA_finetune_val_summary.csv",
-              ["start", "layer", "label_fraction", "val_top1", "val_top5", "final_train_loss"], rows)
-
-    def three_seed(prefix, file_name, seed42_suffix=""):
-        """Mean and sample std (n-1) over seeds 42/43/44 of the conv runs, in percent."""
-        table = []
-        for start in ("scratch", "ae", "dae"):
-            for pct in (1, 10, 100):
-                values = []
+    for dataset, dataset_prefix in DATASETS.items():
+        for model in ("random", "ae", "dae"):
+            for layer in ("bottleneck", "conv"):
+                found = []
                 for seed in (42, 43, 44):
-                    suffix = seed42_suffix if seed == 42 else f"_s{seed}"
-                    name = f"{prefix}{start}_conv_{pct}pct{suffix}"
+                    base = f"{dataset_prefix}eval_{model}_{layer}{seed_suffix(seed)}"
+                    name = ("full_" + base if not dataset_prefix else base) if split == "val" else "test_" + base
                     if name in runs:
-                        values.append(100 * runs[name]["metrics"]["val_top1"])
-                if values:
-                    table.append([start, pct, round(statistics.mean(values), 2),
-                                  round(statistics.stdev(values), 2), len(values)])
-        write_csv(out_dir, file_name, ["start", "label_pct", "val_top1_mean", "val_top1_std", "n_seeds"], table)
+                        found.append(runs[name]["metrics"])
+                if not found:
+                    continue
+                stats = {key: mean_std([100 * m[key] for m in found])
+                         for key in ("knn_top1", "knn_top5", "probe_top1_mean", "probe_top5_mean")}
+                rows.append([dataset, model, layer, int(found[0]["feature_dim"]),
+                             round(stats["knn_top1"][0], 2), round(stats["knn_top1"][1], 2), round(stats["knn_top5"][0], 2),
+                             round(stats["probe_top1_mean"][0], 2), round(stats["probe_top1_mean"][1], 2),
+                             round(stats["probe_top5_mean"][0], 2), len(found)])
+    write_csv(out_dir, f"frozen_{split}_summary.csv",
+              ["dataset", "model", "layer", "feature_dim", "knn_top1_mean", "knn_top1_std", "knn_top5_mean",
+               "probe_top1_mean", "probe_top1_std", "probe_top5_mean", "n_seeds"], rows)
 
-    three_seed("ft_", "partA_finetune_3seed_summary.csv")                       # seed 42 file has no suffix
-    three_seed("cifar_ft_", "cifar100_finetune_3seed_summary.csv", "_s42")      # CIFAR seed 42 file is _s42
 
-    tuning = []
-    for name in sorted(runs):
-        match = re.fullmatch(r"tune_(scratch|dae)_lr([\d.e-]+)_wd([\d.e-]+)", name)
-        if match:
-            tuning.append([match[1], float(match[2]), float(match[3]), round(100 * runs[name]["metrics"]["val_top1"], 2)])
-    for start, name in (("scratch", "ft_scratch_conv_10pct"), ("dae", "ft_dae_conv_10pct")):
-        if name in runs:  # the default recipe: scratch lr 1e-3, DAE encoder lr 1e-4, weight decay 0
-            tuning.append([start, 1e-3 if start == "scratch" else 1e-4, 0.0, round(100 * runs[name]["metrics"]["val_top1"], 2)])
-    tuning.sort(key=lambda row: (row[0] != "scratch", -row[1], row[2]))
-    write_csv(out_dir, "partA_finetune_tuning_10pct.csv", ["start", "encoder_lr", "weight_decay", "val_top1_pct_seed42"],
-              tuning)
+def finetune_table(runs, out_dir, split):
+    """Fine-tuning at 1/10/100% labels: mean and sample std (n-1) over the 3 seeds, pooled conv layer."""
+    rows = []
+    for dataset, dataset_prefix in DATASETS.items():
+        for start in STARTS:
+            for pct in (1, 10, 100):
+                top1, top5, epochs = [], [], []
+                for seed in (42, 43, 44):
+                    if split == "val":
+                        # seed 42 of the Tiny-ImageNet runs has no seed suffix, the others do
+                        name = (f"cifar_ft_{start}_conv_{pct}pct_s{seed}" if dataset_prefix
+                                else f"ft_{start}_conv_{pct}pct" + ("" if seed == 42 else f"_s{seed}"))
+                    else:
+                        name = f"test_{dataset_prefix}ft_{start}_conv_{pct}pct_s{seed}"
+                    if name in runs:
+                        m = runs[name]["metrics"]
+                        top1.append(100 * m[f"{split}_top1"])
+                        top5.append(100 * m[f"{split}_top5"])
+                        epochs.append(m["epochs_trained"])
+                if top1:
+                    spread = statistics.stdev if len(top1) > 1 else (lambda values: 0.0)
+                    rows.append([dataset, start, pct, round(statistics.mean(top1), 2), round(spread(top1), 2),
+                                 round(statistics.mean(top5), 2), round(spread(top5), 2),
+                                 round(statistics.mean(epochs), 1), len(top1)])
+    write_csv(out_dir, f"finetune_{split}_summary.csv",
+              ["dataset", "start", "label_pct", "top1_mean", "top1_std", "top5_mean", "top5_std",
+               "epochs_trained_mean", "n_seeds"], rows)
 
 
 def robustness_table(runs, out_dir):
-    """Probe and k-NN accuracy per corruption and severity (0 = clean)."""
+    """Probe and k-NN accuracy per corruption and severity (0 = clean), validation split.
+    Mean and sample std over the 3 pre-training seeds."""
     rows = []
     for model in ("ae", "dae", "random"):
-        name = f"robust_{model}_conv"
-        if name not in runs:
+        found = [runs[f"robust_{model}_conv{seed_suffix(seed)}"] for seed in (42, 43, 44)
+                 if f"robust_{model}_conv{seed_suffix(seed)}" in runs]
+        if not found:
             continue
-        m = runs[name]["metrics"]
-        for kind in runs[name]["severities"]:
-            rows.append([model, kind, 0, m["clean_probe_top1"], m["clean_knn_top1"]])
-            for severity in range(1, 6):
-                rows.append([model, kind, severity, m[f"{kind}_s{severity}_probe_top1"],
-                             m[f"{kind}_s{severity}_knn_top1"]])
-    write_csv(out_dir, "robustness_val_summary.csv", ["model", "corruption", "severity", "probe_top1", "knn_top1"], rows)
+        for kind in found[0]["severities"]:
+            for severity in range(0, 6):
+                keys = ("clean_probe_top1", "clean_knn_top1") if severity == 0 else                     (f"{kind}_s{severity}_probe_top1", f"{kind}_s{severity}_knn_top1")
+                probe = mean_std([100 * run["metrics"][keys[0]] for run in found])
+                knn = mean_std([100 * run["metrics"][keys[1]] for run in found])
+                rows.append([model, kind, severity, round(probe[0], 3), round(probe[1], 3), round(knn[0], 3),
+                             round(knn[1], 3), len(found)])
+    write_csv(out_dir, "robustness_val_summary.csv",
+              ["model", "corruption", "severity", "probe_top1_mean", "probe_top1_std", "knn_top1_mean", "knn_top1_std",
+               "n_seeds"], rows)
 
 
-def test_tables(runs, out_dir):
-    """Final numbers on the test split (test_* runs), in percent: frozen and fine-tuned, both datasets."""
-    datasets = {"tiny_imagenet": "test_", "cifar100": "test_cifar_"}
-    frozen = []
-    for dataset, prefix in datasets.items():
-        for model in ("random", "ae", "dae"):
-            for layer in ("bottleneck", "conv"):
-                name = f"{prefix}eval_{model}_{layer}"
-                if name in runs:
-                    m = runs[name]["metrics"]
-                    frozen.append([dataset, model, layer] + [round(100 * m[key], 2) for key in
-                                   ("knn_top1", "knn_top5", "probe_top1_mean", "probe_top1_std", "probe_top5_mean")])
-    write_csv(out_dir, "partA_test_frozen_summary.csv",
-              ["dataset", "model", "layer", "knn_top1", "knn_top5", "probe_top1_mean", "probe_top1_std",
-               "probe_top5_mean"], frozen)
-
-    finetuned = []
-    for dataset, prefix in datasets.items():
-        for start in ("scratch", "ae", "dae"):
-            for pct in (1, 10, 100):
-                top1, top5 = [], []
-                for seed in (42, 43, 44):
-                    name = f"{prefix}ft_{start}_conv_{pct}pct_s{seed}"
-                    if name in runs:
-                        top1.append(100 * runs[name]["metrics"]["test_top1"])
-                        top5.append(100 * runs[name]["metrics"]["test_top5"])
-                if top1:
-                    spread = statistics.stdev if len(top1) > 1 else (lambda values: 0.0)
-                    finetuned.append([dataset, start, pct, round(statistics.mean(top1), 2), round(spread(top1), 2),
-                                      round(statistics.mean(top5), 2), round(spread(top5), 2), len(top1)])
-    write_csv(out_dir, "partA_test_finetune_summary.csv",
-              ["dataset", "start", "label_pct", "test_top1_mean", "test_top1_std", "test_top5_mean", "test_top5_std",
-               "n_seeds"], finetuned)
+def tuning_table(runs, out_dir):
+    """The fine-tuning learning-rate grid at 10% labels (validation, seed 42) and which setting won."""
+    rows = []
+    for name in sorted(runs):
+        match = re.fullmatch(r"tune_(scratch|ae|dae)_lr[\d.e-]+_wd[\d.e-]+", name)
+        if match:
+            c = runs[name]["config"]
+            rows.append([match[1], c["encoder_learning_rate"], c["learning_rate"], c["weight_decay"],
+                         percent(runs[name]["metrics"]["val_top1"])])
+    rows.sort(key=lambda row: (row[0], row[1], row[3]))
+    write_csv(out_dir, "finetune_tuning_summary.csv",
+              ["start", "encoder_learning_rate", "head_learning_rate", "weight_decay", "val_top1"], rows)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Aggregate results/*.json into summaries/*.csv")
+    parser = argparse.ArgumentParser(description="Aggregate result JSONs into summaries/*.csv")
     parser.add_argument("--results", default="results")
     parser.add_argument("--out", default="summaries")
     args = parser.parse_args()
-    runs = load_metrics(args.results)
+    runs = load_runs(args.results)
     print(f"read {len(runs)} result files from {args.results}/")
     search_tables(runs, args.out)
-    frozen_tables(runs, args.out)
-    finetune_tables(runs, args.out)
+    pretrain_table(runs, args.out)
+    for split in ("val", "test"):
+        frozen_table(runs, args.out, split)
+        finetune_table(runs, args.out, split)
     robustness_table(runs, args.out)
-    test_tables(runs, args.out)
+    tuning_table(runs, args.out)
 
 
 if __name__ == "__main__":
