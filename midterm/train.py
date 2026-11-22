@@ -12,17 +12,20 @@ import time
 
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from callbacks import ColabProgressBar, KNNMonitor
 from config import load_config
 from datamodule import build_datamodule
-from evaluation import run_evaluation
+from evaluation import extract_features, knn_accuracy, run_evaluation
 from robustness import run_robustness
 from utils import build_model, parse_args
 
 torch.set_float32_matmul_precision("medium")  # faster matmuls on modern GPUs, silences a Lightning warning
+
+# What the stop rule watches per mode: (validation metric, direction of "better").
+STOP_METRIC = {"pretrain_dae": ("val_recon_loss", "min"), "finetune": ("val_top1", "max")}
 
 
 def run(config):
@@ -36,6 +39,23 @@ def run(config):
 
     datamodule = build_datamodule(config)
     model = build_model(config)
+
+    callbacks = [
+        # last.ckpt is what resume loads. save_top_k=0 skips the extra per-epoch copy.
+        ModelCheckpoint(dirpath=checkpoint_dir, save_last=True, save_top_k=0),
+        ColabProgressBar(refresh_rate=20),
+    ]
+    if config["mode"] == "pretrain_dae":
+        callbacks.append(KNNMonitor(every_n_epochs=config["knn_every_n_epochs"]))
+    best_checkpoint = None
+    if config["early_stopping_patience"] is not None:
+        monitor, direction = STOP_METRIC[config["mode"]]
+        # Stop when the validation metric has not improved for `patience` epochs, and keep the best epoch.
+        callbacks.append(EarlyStopping(monitor=monitor, mode=direction, patience=config["early_stopping_patience"]))
+        best_checkpoint = ModelCheckpoint(dirpath=os.path.join(checkpoint_dir, "best"), filename="best",
+                                          monitor=monitor, mode=direction, save_top_k=1)
+        callbacks.append(best_checkpoint)
+
     trainer = pl.Trainer(
         logger=TensorBoardLogger(os.path.join(config["output_dir"], "tb_logs"), name=run_name, default_hp_metric=False),
         accelerator="auto",
@@ -44,11 +64,7 @@ def run(config):
         precision=precision,
         fast_dev_run=config["fast_dev_run"],
         log_every_n_steps=10,
-        callbacks=[
-            # last.ckpt is what resume loads. save_top_k=0 skips the extra per-epoch copy.
-            ModelCheckpoint(dirpath=checkpoint_dir, save_last=True, save_top_k=0),
-            ColabProgressBar(refresh_rate=20),
-        ] + ([KNNMonitor(every_n_epochs=config["knn_every_n_epochs"])] if config["mode"] == "pretrain_dae" else []),
+        callbacks=callbacks,
     )
 
     resume_from = os.path.join(checkpoint_dir, "last.ckpt")
@@ -64,6 +80,21 @@ def run(config):
         return {}  # wiring test only: nothing worth saving
 
     metrics = {name: value.item() for name, value in trainer.callback_metrics.items()}
+    metrics["epochs_trained"] = trainer.current_epoch
+    if best_checkpoint is not None:
+        # Go back to the best epoch: its weights are the model, and its validation numbers are the ones reported.
+        checkpoint = torch.load(best_checkpoint.best_model_path, map_location="cpu", weights_only=False)
+        model.load_state_dict(checkpoint["state_dict"])
+        metrics["best_epoch"] = checkpoint["epoch"] + 1
+        trainer.validate(model, datamodule=datamodule, verbose=False)
+        metrics.update({name: value.item() for name, value in trainer.callback_metrics.items()})
+        if config["mode"] == "pretrain_dae":
+            # KNNMonitor only runs every few epochs, so measure the best-epoch encoder directly.
+            device = "cuda" if use_gpu else "cpu"
+            bank_features, bank_labels = extract_features(model.encoder, datamodule.train_eval_dataloader(), device)
+            val_features, val_labels = extract_features(model.encoder, datamodule.val_dataloader(), device)
+            knn = knn_accuracy(bank_features, bank_labels, val_features, val_labels)
+            metrics["val_knn_top1"], metrics["val_knn_top5"] = knn["top1"], knn["top5"]
     if config["mode"] == "finetune" and config["eval_split"] == "test":
         trainer.test(model, datamodule=datamodule)  # the one allowed look at the test set
         # trainer.test replaces callback_metrics, so merge instead of overwrite to keep the val numbers.

@@ -21,6 +21,16 @@ WEIGHT_DECAYS = [0.0, 1e-4]
 # Proxy setting: a quarter of the train images and 20 epochs. Ranks trials at a fraction of the cost.
 PROXY = {"train_fraction": 0.25, "max_epochs": 20, "knn_every_n_epochs": 5}
 
+# Fine-tuning has no fixed epoch count. Training stops when validation top-1 has not improved for
+# `early_stopping_patience` epochs, and the best epoch's weights are kept. max_epochs is only a
+# safety cap. A smaller label fraction means fewer steps per epoch (1% = 3 steps, 10% = 35,
+# 100% = 351), so it gets a longer patience in epochs.
+FINETUNE_STOP = {
+    0.01: {"max_epochs": 1000, "early_stopping_patience": 100},
+    0.1: {"max_epochs": 400, "early_stopping_patience": 25},
+    1.0: {"max_epochs": 150, "early_stopping_patience": 8},
+}
+
 
 def write_config(folder, run_name, settings):
     os.makedirs(folder, exist_ok=True)
@@ -93,18 +103,17 @@ def make_finetune_runs(folder="configs/partA/finetune"):
     """Fine-tune each encoder (and a from-scratch baseline) at 1%, 10%, 100% of the labels.
 
     scratch = same architecture, random init: the supervised baseline. All variants share
-    one recipe; only the starting weights differ. Fewer labels means fewer steps per epoch,
-    so the epoch count grows as the fraction shrinks to keep the number of updates similar.
+    one recipe; only the starting weights differ. There is no fixed epoch count: each run
+    stops by the validation stop rule (FINETUNE_STOP) and keeps its best epoch.
     Pretrained encoders get a gentler encoder learning rate (1e-4) than the new head (1e-3).
     """
-    epochs_for_fraction = {0.01: 300, 0.1: 100, 1.0: 30}
     starting_points = {"scratch": None, "ae": "outputs/encoders/full_ae.pt", "dae": "outputs/encoders/full_dae.pt"}
     for model, encoder_path in starting_points.items():
         for layer in ("bottleneck", "conv"):
-            for fraction, epochs in epochs_for_fraction.items():
+            for fraction in FINETUNE_STOP:
                 write_config(folder, f"ft_{model}_{layer}_{round(fraction * 100)}pct", {
                     "mode": "finetune", "feature_layer": layer, "encoder_path": encoder_path,
-                    "latent_dim": 512, "train_fraction": fraction, "max_epochs": epochs,
+                    "latent_dim": 512, "train_fraction": fraction, **FINETUNE_STOP[fraction],
                     "learning_rate": 1e-3,
                     "encoder_learning_rate": 1e-3 if model == "scratch" else 1e-4,
                 })
@@ -120,15 +129,14 @@ def make_finetune_extras(folder="configs/partA/finetune_extra"):
        and weight decay (validation only), so neither side can be called undertuned.
        The default combination was already run in make_finetune_runs, so it is skipped.
     """
-    epochs_for_fraction = {0.01: 300, 0.1: 100, 1.0: 30}
     starting_points = {"scratch": None, "ae": "outputs/encoders/full_ae.pt", "dae": "outputs/encoders/full_dae.pt"}
     base = {"mode": "finetune", "feature_layer": "conv", "latent_dim": 512}
 
     for model, encoder_path in starting_points.items():
-        for fraction, epochs in epochs_for_fraction.items():
+        for fraction in FINETUNE_STOP:
             for seed in (43, 44):
                 write_config(folder, f"ft_{model}_conv_{round(fraction * 100)}pct_s{seed}", {
-                    **base, "encoder_path": encoder_path, "train_fraction": fraction, "max_epochs": epochs,
+                    **base, "encoder_path": encoder_path, "train_fraction": fraction, **FINETUNE_STOP[fraction],
                     "seed": seed, "learning_rate": 1e-3,
                     "encoder_learning_rate": 1e-3 if model == "scratch" else 1e-4})
 
@@ -141,7 +149,7 @@ def make_finetune_extras(folder="configs/partA/finetune_extra"):
                 if rate == default_rate and weight_decay == 0.0:
                     continue
                 write_config(folder, f"tune_{model}_lr{rate:g}_wd{weight_decay:g}", {
-                    **base, "encoder_path": encoder_path, "train_fraction": 0.1, "max_epochs": 100,
+                    **base, "encoder_path": encoder_path, "train_fraction": 0.1, **FINETUNE_STOP[0.1],
                     "learning_rate": rate if model == "scratch" else 1e-3,
                     "encoder_learning_rate": rate, "weight_decay": weight_decay})
 
@@ -164,13 +172,12 @@ def make_transfer_runs(folder="configs/partA/transfer"):
                 settings["encoder_path"] = starting_points[model]
             write_config(folder, f"cifar_eval_{model}_{layer}", settings)
 
-    epochs_for_fraction = {0.01: 300, 0.1: 100, 1.0: 30}
     for model, encoder_path in starting_points.items():
-        for fraction, epochs in epochs_for_fraction.items():
+        for fraction in FINETUNE_STOP:
             for seed in (42, 43, 44):
                 write_config(folder, f"cifar_ft_{model}_conv_{round(fraction * 100)}pct_s{seed}", {
                     **base, "mode": "finetune", "feature_layer": "conv", "encoder_path": encoder_path,
-                    "train_fraction": fraction, "max_epochs": epochs, "seed": seed, "learning_rate": 1e-3,
+                    "train_fraction": fraction, **FINETUNE_STOP[fraction], "seed": seed, "learning_rate": 1e-3,
                     "encoder_learning_rate": 1e-3 if model == "scratch" else 1e-4})
 
 
@@ -196,7 +203,6 @@ def make_test_runs(folder="configs/partA/test"):
     Fine-tuning has to retrain, since the validation runs did not save their weights.
     """
     starting_points = {"scratch": None, "ae": "outputs/encoders/full_ae.pt", "dae": "outputs/encoders/full_dae.pt"}
-    epochs_for_fraction = {0.01: 300, 0.1: 100, 1.0: 30}
     for prefix, dataset_settings in (("test_", {}), ("test_cifar_", {"dataset": "cifar100"})):
         base = {**dataset_settings, "eval_split": "test", "latent_dim": 512}
         for model in ("dae", "ae", "random"):
@@ -206,11 +212,11 @@ def make_test_runs(folder="configs/partA/test"):
                     settings["encoder_path"] = starting_points[model]
                 write_config(folder, f"{prefix}eval_{model}_{layer}", settings)
         for model, encoder_path in starting_points.items():
-            for fraction, epochs in epochs_for_fraction.items():
+            for fraction in FINETUNE_STOP:
                 for seed in (42, 43, 44):
                     write_config(folder, f"{prefix}ft_{model}_conv_{round(fraction * 100)}pct_s{seed}", {
                         **base, "mode": "finetune", "feature_layer": "conv", "encoder_path": encoder_path,
-                        "train_fraction": fraction, "max_epochs": epochs, "seed": seed, "learning_rate": 1e-3,
+                        "train_fraction": fraction, **FINETUNE_STOP[fraction], "seed": seed, "learning_rate": 1e-3,
                         "encoder_learning_rate": 1e-3 if model == "scratch" else 1e-4})
 
 

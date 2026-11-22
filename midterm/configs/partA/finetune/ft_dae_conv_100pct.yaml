@@ -4,6 +4,7 @@ feature_layer: conv
 encoder_path: outputs/encoders/full_dae.pt
 latent_dim: 512
 train_fraction: 1.0
-max_epochs: 30
+max_epochs: 150
+early_stopping_patience: 8
 learning_rate: 0.001
 encoder_learning_rate: 0.0001

@@ -6,7 +6,8 @@ mode: finetune
 feature_layer: conv
 encoder_path: outputs/encoders/full_dae.pt
 train_fraction: 0.01
-max_epochs: 300
+max_epochs: 1000
+early_stopping_patience: 100
 seed: 42
 learning_rate: 0.001
 encoder_learning_rate: 0.0001

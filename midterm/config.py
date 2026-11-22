@@ -21,7 +21,11 @@ DEFAULTS = {
     "num_workers": 0,              # data is in memory as tensors, workers would only add overhead
 
     # --- training
-    "max_epochs": 100,
+    "max_epochs": 100,             # a cap. With early stopping on, the rule below decides when training ends
+    # Stop rule (None = off, train for max_epochs). Watches the validation hold-out, never the test split:
+    # val_top1 for fine-tuning (higher is better), val_recon_loss for the autoencoder (lower is better).
+    # Training stops after this many epochs without improvement, and the best epoch's weights are kept.
+    "early_stopping_patience": None,
     "precision": "auto",           # "16-mixed" on GPU, "32-true" on CPU
     "resume": True,                # continue from outputs/checkpoints/<run_name>/last.ckpt if present
     "fast_dev_run": False,         # one batch through every step: a wiring test, not a real run
