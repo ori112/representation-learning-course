@@ -8,6 +8,7 @@ One config file = one run. The run writes, under its run_name:
 """
 import json
 import os
+import shutil
 import time
 
 import pytorch_lightning as pl
@@ -111,6 +112,9 @@ def run(config):
         json.dump({"config": config, "metrics": metrics, "train_seconds": round(train_seconds, 1),
                    "device": torch.cuda.get_device_name(0) if use_gpu else "cpu",
                    "precision": precision, "resumed": resume_from is not None}, file, indent=2)
+    # Checkpoints are only for resuming an interrupted run. Once the results are written they are dead weight
+    # (a DAE checkpoint holds the weights and the Adam state, hundreds of MB), so free the space, notably on Drive.
+    shutil.rmtree(checkpoint_dir, ignore_errors=True)
     return metrics
 
 
