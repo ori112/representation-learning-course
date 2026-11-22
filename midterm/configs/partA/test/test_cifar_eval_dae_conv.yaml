@@ -8,4 +8,4 @@ probe_seeds:
 - 43
 - 44
 feature_layer: conv
-encoder_path: outputs/encoders/full_dae.pt
+encoder_path: outputs/encoders/final_dae.pt

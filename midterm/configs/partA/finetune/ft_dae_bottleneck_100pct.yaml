@@ -1,7 +1,7 @@
 run_name: ft_dae_bottleneck_100pct
 mode: finetune
 feature_layer: bottleneck
-encoder_path: outputs/encoders/full_dae.pt
+encoder_path: outputs/encoders/final_dae.pt
 latent_dim: 512
 train_fraction: 1.0
 max_epochs: 150

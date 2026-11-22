@@ -51,7 +51,8 @@ def run(config):
     if config["early_stopping_patience"] is not None:
         monitor, direction = STOP_METRIC[config["mode"]]
         # Stop when the validation metric has not improved for `patience` epochs, and keep the best epoch.
-        callbacks.append(EarlyStopping(monitor=monitor, mode=direction, patience=config["early_stopping_patience"]))
+        callbacks.append(EarlyStopping(monitor=monitor, mode=direction, patience=config["early_stopping_patience"],
+                                      min_delta=config["early_stopping_min_delta"]))
         best_checkpoint = ModelCheckpoint(dirpath=os.path.join(checkpoint_dir, "best"), filename="best",
                                           monitor=monitor, mode=direction, save_top_k=1)
         callbacks.append(best_checkpoint)

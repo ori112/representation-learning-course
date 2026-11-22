@@ -1,7 +1,7 @@
 run_name: robust_dae_conv
 mode: robustness
 feature_layer: conv
-encoder_path: outputs/encoders/full_dae.pt
+encoder_path: outputs/encoders/final_dae.pt
 latent_dim: 512
 probe_seeds:
 - 42

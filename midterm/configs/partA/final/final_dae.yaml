@@ -1,7 +1,9 @@
-run_name: full_dae
+run_name: final_dae
 train_fraction: 1.0
 max_epochs: 100
 knn_every_n_epochs: 10
+early_stopping_patience: 10
+early_stopping_min_delta: 0.0001
 corruption: mask
 corruption_strength: 0.3
 latent_dim: 512

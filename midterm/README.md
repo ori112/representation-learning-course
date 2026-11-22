@@ -34,7 +34,7 @@ Each run prints `Final metrics: {...}`, writes `results/<run_name>.json` and log
 ## Running one experiment
 
 ```bash
-uv run python train.py --config configs/partA/final/full_dae.yaml
+uv run python train.py --config configs/partA/final/final_dae.yaml
 ```
 
 A config lists only what differs from `config.py` (`DEFAULTS`); an unknown key raises an error. The `mode` key picks what runs:
@@ -52,7 +52,7 @@ All seeds are fixed (`seed: 42`; fine-tuning repeats use 43 and 44).
 ## Reproducing Part A, in order
 
 The configs of a step sort so that training comes before evaluation. Later steps need the encoders saved by
-`configs/partA/final/full_dae.yaml` and `full_ae.yaml`, so run the steps in this order. This loop skips runs that
+`configs/partA/final/final_dae.yaml` and `final_ae.yaml`, so run the steps in this order. This loop skips runs that
 already have a result file:
 
 ```bash
@@ -65,8 +65,8 @@ done
 |---|---|---|---|
 | 1 | `configs/partA/search/` | 30 | random search over corruption type and strength, latent size, learning rate, weight decay (proxy: 25% of train, 20 epochs), picked by validation k-NN |
 | 2 | `configs/partA/seedcheck/` | 6 | the top trials again with 2 more seeds |
-| 3 | `configs/partA/final/` | 8 | full DAE and vanilla AE (100 epochs), then k-NN and probe on both layers and a random-init encoder |
-| 4 | `configs/partA/finetune/` | 18 | fine-tuning at 1/10/100% labels, both layers, scratch vs AE vs DAE |
+| 3 | `configs/partA/final/` | 8 | full DAE and vanilla AE, trained until validation reconstruction error stops improving (cap 100 epochs), then k-NN and probe on both layers and a random-init encoder |
+| 4 | `configs/partA/finetune/` | 18 | fine-tuning at 1/10/100% labels, both layers, scratch vs AE vs DAE. No fixed epoch count: each run stops when validation top-1 has not improved for a few epochs and keeps its best epoch |
 | 5 | `configs/partA/finetune_extra/` | 34 | 2 extra seeds on the pooled conv layer, plus a learning-rate and weight-decay grid at 10% labels |
 | 6 | `configs/partA/transfer/` | 33 | the same encoders on CIFAR-100 (resized to 64x64): frozen evaluation and 3-seed fine-tuning |
 | 7 | `configs/partA/robustness/` | 3 | probe and k-NN under noise, blur, low contrast, JPEG and patch masking, severities 1-5 |

@@ -1,7 +1,7 @@
 run_name: ft_dae_conv_1pct
 mode: finetune
 feature_layer: conv
-encoder_path: outputs/encoders/full_dae.pt
+encoder_path: outputs/encoders/final_dae.pt
 latent_dim: 512
 train_fraction: 0.01
 max_epochs: 1000

@@ -6,4 +6,4 @@ probe_seeds:
 - 44
 latent_dim: 512
 feature_layer: conv
-encoder_path: outputs/encoders/full_dae.pt
+encoder_path: outputs/encoders/final_dae.pt

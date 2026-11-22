@@ -1,6 +1,6 @@
 """A5 evidence: per-class accuracy, t-SNE, retrieval grids, and a probe sanity check.
 
-Run after the encoders exist (outputs/encoders/full_dae.pt, full_ae.pt):
+Run after the encoders exist (outputs/encoders/final_dae.pt, final_ae.pt):
     uv run python -m scripts.interpret   (from the midterm folder)
 Everything is computed on the validation hold-out, never on the test split.
 Outputs go to figures/ (images) and summaries/ (small CSVs).
@@ -19,7 +19,7 @@ from model import build_encoder, build_feature_extractor
 from evaluation import extract_features, knn_accuracy, train_linear_probe, top_k_accuracy
 
 
-ENCODERS = {"dae": "outputs/encoders/full_dae.pt", "ae": "outputs/encoders/full_ae.pt", "random": None}
+ENCODERS = {"dae": "outputs/encoders/final_dae.pt", "ae": "outputs/encoders/final_ae.pt", "random": None}
 LATENT_DIM = 512
 TSNE_CLASSES = 20          # first 20 class ids: arbitrary but fixed, not cherry-picked
 RETRIEVAL_QUERIES = 4      # first query image of the first 4 classes: small enough for the report

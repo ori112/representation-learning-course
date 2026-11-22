@@ -21,6 +21,9 @@ WEIGHT_DECAYS = [0.0, 1e-4]
 # Proxy setting: a quarter of the train images and 20 epochs. Ranks trials at a fraction of the cost.
 PROXY = {"train_fraction": 0.25, "max_epochs": 20, "knn_every_n_epochs": 5}
 
+# Where the final pre-trained encoders are saved (train.py writes outputs/encoders/<run_name>.pt).
+ENCODER_PATH = {"ae": "outputs/encoders/final_ae.pt", "dae": "outputs/encoders/final_dae.pt"}
+
 # Fine-tuning has no fixed epoch count. Training stops when validation top-1 has not improved for
 # `early_stopping_patience` epochs, and the best epoch's weights are kept. max_epochs is only a
 # safety cap. A smaller label fraction means fewer steps per epoch (1% = 3 steps, 10% = 35,
@@ -86,15 +89,19 @@ def make_full_runs(folder="configs/partA/final"):
     """
     chosen = {"corruption": "mask", "corruption_strength": 0.30, "latent_dim": 512,
               "learning_rate": 1e-3, "weight_decay": 0.0}
-    full = {"train_fraction": 1.0, "max_epochs": 100, "knn_every_n_epochs": 10}
-    write_config(folder, "full_dae", {**full, **chosen})
-    write_config(folder, "full_ae", {**full, **chosen, "corruption_strength": 0.0})
+    # Full size, same stop rule for both models: stop when validation reconstruction error has not
+    # improved by at least 1e-4 for 10 epochs, keep the best epoch. max_epochs is only a safety cap.
+    # (The first versions of these runs, full_dae / full_ae, trained a fixed 100 epochs.)
+    full = {"train_fraction": 1.0, "max_epochs": 100, "knn_every_n_epochs": 10,
+            "early_stopping_patience": 10, "early_stopping_min_delta": 1e-4}
+    write_config(folder, "final_dae", {**full, **chosen})
+    write_config(folder, "final_ae", {**full, **chosen, "corruption_strength": 0.0})
 
     evaluation = {"mode": "evaluate", "probe_seeds": [42, 43, 44], "latent_dim": chosen["latent_dim"]}
     for model in ("dae", "ae"):
         for layer in ("bottleneck", "conv"):  # conv = which-layer-is-h comparison
             write_config(folder, f"full_eval_{model}_{layer}", {
-                **evaluation, "feature_layer": layer, "encoder_path": f"outputs/encoders/full_{model}.pt"})
+                **evaluation, "feature_layer": layer, "encoder_path": ENCODER_PATH[model]})
     for layer in ("bottleneck", "conv"):  # random-init encoder: the "no learning" floor
         write_config(folder, f"full_eval_random_{layer}", {**evaluation, "feature_layer": layer})
 
@@ -107,7 +114,7 @@ def make_finetune_runs(folder="configs/partA/finetune"):
     stops by the validation stop rule (FINETUNE_STOP) and keeps its best epoch.
     Pretrained encoders get a gentler encoder learning rate (1e-4) than the new head (1e-3).
     """
-    starting_points = {"scratch": None, "ae": "outputs/encoders/full_ae.pt", "dae": "outputs/encoders/full_dae.pt"}
+    starting_points = {"scratch": None, "ae": ENCODER_PATH["ae"], "dae": ENCODER_PATH["dae"]}
     for model, encoder_path in starting_points.items():
         for layer in ("bottleneck", "conv"):
             for fraction in FINETUNE_STOP:
@@ -129,7 +136,7 @@ def make_finetune_extras(folder="configs/partA/finetune_extra"):
        and weight decay (validation only), so neither side can be called undertuned.
        The default combination was already run in make_finetune_runs, so it is skipped.
     """
-    starting_points = {"scratch": None, "ae": "outputs/encoders/full_ae.pt", "dae": "outputs/encoders/full_dae.pt"}
+    starting_points = {"scratch": None, "ae": ENCODER_PATH["ae"], "dae": ENCODER_PATH["dae"]}
     base = {"mode": "finetune", "feature_layer": "conv", "latent_dim": 512}
 
     for model, encoder_path in starting_points.items():
@@ -143,7 +150,7 @@ def make_finetune_extras(folder="configs/partA/finetune_extra"):
     # scratch moves everything at one rate. For a pretrained encoder the head rate stays 1e-3
     # and the encoder rate is the one tuned.
     for model, encoder_path, rates, default_rate in (
-            ("scratch", None, (3e-4, 1e-3, 3e-3), 1e-3), ("dae", "outputs/encoders/full_dae.pt", (1e-4, 3e-4, 1e-3), 1e-4)):
+            ("scratch", None, (3e-4, 1e-3, 3e-3), 1e-3), ("dae", ENCODER_PATH["dae"], (1e-4, 3e-4, 1e-3), 1e-4)):
         for rate in rates:
             for weight_decay in (0.0, 1e-4, 1e-3):
                 if rate == default_rate and weight_decay == 0.0:
@@ -163,7 +170,7 @@ def make_transfer_runs(folder="configs/partA/transfer"):
     with the same recipe as the Tiny-ImageNet runs. Eval configs sort before the ft_ ones.
     """
     base = {"dataset": "cifar100", "latent_dim": 512}
-    starting_points = {"scratch": None, "ae": "outputs/encoders/full_ae.pt", "dae": "outputs/encoders/full_dae.pt"}
+    starting_points = {"scratch": None, "ae": ENCODER_PATH["ae"], "dae": ENCODER_PATH["dae"]}
 
     for model in ("dae", "ae", "random"):
         for layer in ("bottleneck", "conv"):
@@ -187,7 +194,7 @@ def make_robustness_runs(folder="configs/partA/robustness"):
     Three encoders: DAE, vanilla AE, random-init. Supervised-from-scratch is left out because
     the fine-tuning runs do not save their weights and a probe on it is not the same protocol.
     """
-    starting_points = {"dae": "outputs/encoders/full_dae.pt", "ae": "outputs/encoders/full_ae.pt", "random": None}
+    starting_points = {"dae": ENCODER_PATH["dae"], "ae": ENCODER_PATH["ae"], "random": None}
     for model, encoder_path in starting_points.items():
         write_config(folder, f"robust_{model}_conv", {
             "mode": "robustness", "feature_layer": "conv", "encoder_path": encoder_path,
@@ -202,7 +209,7 @@ def make_test_runs(folder="configs/partA/test"):
     chosen h). Both datasets, Tiny-ImageNet (official valid split) and CIFAR-100 (official test split).
     Fine-tuning has to retrain, since the validation runs did not save their weights.
     """
-    starting_points = {"scratch": None, "ae": "outputs/encoders/full_ae.pt", "dae": "outputs/encoders/full_dae.pt"}
+    starting_points = {"scratch": None, "ae": ENCODER_PATH["ae"], "dae": ENCODER_PATH["dae"]}
     for prefix, dataset_settings in (("test_", {}), ("test_cifar_", {"dataset": "cifar100"})):
         base = {**dataset_settings, "eval_split": "test", "latent_dim": 512}
         for model in ("dae", "ae", "random"):
