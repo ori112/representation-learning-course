@@ -1,0 +1,11 @@
+run_name: test_ft_ae_conv_100pct_s43
+eval_split: test
+latent_dim: 512
+mode: finetune
+feature_layer: conv
+encoder_path: outputs/encoders/full_ae.pt
+train_fraction: 1.0
+max_epochs: 30
+seed: 43
+learning_rate: 0.001
+encoder_learning_rate: 0.0001

@@ -187,6 +187,33 @@ def make_robustness_runs(folder="configs/partA/robustness"):
             "latent_dim": 512, "probe_seeds": [42, 43, 44]})
 
 
+def make_test_runs(folder="configs/partA/test"):
+    """The final numbers: the same recipes as the validation runs, scored on the test split.
+
+    Nothing was tuned on these. The chosen DAE, its twin and the baselines are measured once:
+    frozen k-NN + probe on both layers, and 3-seed fine-tuning on the pooled conv layer (the
+    chosen h). Both datasets, Tiny-ImageNet (official valid split) and CIFAR-100 (official test split).
+    Fine-tuning has to retrain, since the validation runs did not save their weights.
+    """
+    starting_points = {"scratch": None, "ae": "outputs/encoders/full_ae.pt", "dae": "outputs/encoders/full_dae.pt"}
+    epochs_for_fraction = {0.01: 300, 0.1: 100, 1.0: 30}
+    for prefix, dataset_settings in (("test_", {}), ("test_cifar_", {"dataset": "cifar100"})):
+        base = {**dataset_settings, "eval_split": "test", "latent_dim": 512}
+        for model in ("dae", "ae", "random"):
+            for layer in ("bottleneck", "conv"):
+                settings = {**base, "mode": "evaluate", "probe_seeds": [42, 43, 44], "feature_layer": layer}
+                if model != "random":
+                    settings["encoder_path"] = starting_points[model]
+                write_config(folder, f"{prefix}eval_{model}_{layer}", settings)
+        for model, encoder_path in starting_points.items():
+            for fraction, epochs in epochs_for_fraction.items():
+                for seed in (42, 43, 44):
+                    write_config(folder, f"{prefix}ft_{model}_conv_{round(fraction * 100)}pct_s{seed}", {
+                        **base, "mode": "finetune", "feature_layer": "conv", "encoder_path": encoder_path,
+                        "train_fraction": fraction, "max_epochs": epochs, "seed": seed, "learning_rate": 1e-3,
+                        "encoder_learning_rate": 1e-3 if model == "scratch" else 1e-4})
+
+
 if __name__ == "__main__":
     make_dae_search()
     make_finetune_extras()
@@ -195,4 +222,5 @@ if __name__ == "__main__":
     make_seed_check()
     make_transfer_runs()
     make_robustness_runs()
+    make_test_runs()
     print(f"Wrote {NUM_TRIALS} search configs and the other grids under configs/partA/")
