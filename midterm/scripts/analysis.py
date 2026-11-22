@@ -76,3 +76,37 @@ def plot_label_efficiency(summary_csvs, save_path=None):
     if save_path:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
     return fig
+
+
+def plot_robustness(summary_csv, save_path=None):
+    """Accuracy vs corruption severity, one column per corruption, one row per metric.
+
+    Severity 0 is the clean image. The probe and k-NN rows are kept apart on purpose:
+    they react very differently to the same damage (see the robustness discussion).
+    """
+    import csv
+
+    colors = {"dae": "tab:red", "ae": "tab:green", "random": "tab:gray"}
+    labels = {"dae": "DAE", "ae": "vanilla AE", "random": "random init"}
+    with open(summary_csv) as file:
+        rows = list(csv.DictReader(file))
+    corruptions = list(dict.fromkeys(row["corruption"] for row in rows))
+    fig, axes = plt.subplots(2, len(corruptions), figsize=(3.2 * len(corruptions), 5.6), sharey="row")
+    for row_index, (metric, title) in enumerate((("probe_top1", "linear probe"), ("knn_top1", "k-NN"))):
+        for ax, corruption in zip(axes[row_index], corruptions):
+            for model, color in colors.items():
+                points = sorted((int(r["severity"]), 100 * float(r[metric]))
+                                for r in rows if r["model"] == model and r["corruption"] == corruption)
+                ax.plot([p[0] for p in points], [p[1] for p in points], marker="o", color=color, label=labels[model])
+            ax.set_xticks(range(6))
+            ax.grid(alpha=0.3)
+            if row_index == 0:
+                ax.set_title(corruption.replace("_", " "))
+            if row_index == 1:
+                ax.set_xlabel("severity (0 = clean)")
+        axes[row_index][0].set_ylabel(f"{title} top-1 (%)")
+    axes[0][0].legend()
+    fig.tight_layout()
+    if save_path:
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    return fig

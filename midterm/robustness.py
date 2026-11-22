@@ -28,11 +28,10 @@ import torch
 from PIL import Image
 from torchvision.transforms.functional import gaussian_blur
 
-from corruptions import gaussian_noise, patch_masking
+from augmentations import gaussian_noise, patch_masking
 from datamodule import NUM_CLASSES, build_datamodule
-from evaluate import build_feature_extractor
 from evaluation import extract_features, knn_accuracy, top_k_accuracy, train_linear_probe
-from model import build_encoder
+from model import build_encoder, build_feature_extractor
 
 # Five severities per corruption, mild to harsh. Noise, blur and contrast follow the
 # spirit of ImageNet-C. "mask" is the corruption the DAE was trained with (drop rate).

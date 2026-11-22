@@ -1,13 +1,21 @@
 """Representation evaluation: feature extraction and weighted cosine k-NN.
 
-Linear probe is piece 2. The collapse diagnostics (alignment, uniformity, std,
-effective rank) are added in a later piece.
+Also the linear probe, and run_evaluation (mode: evaluate), which measures one frozen
+encoder with both. The collapse diagnostics (alignment, uniformity, std, effective rank)
+are added in a later piece.
 """
+import json
+import os
+import statistics
+
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
+
+from datamodule import NUM_CLASSES, build_datamodule
+from model import build_encoder, build_feature_extractor
 
 
 @torch.no_grad()
@@ -129,3 +137,41 @@ def linear_probe_accuracy(train_features, train_labels, test_features, test_labe
     """Train a linear probe on train features, return its top-1/top-5 on test features."""
     probe = train_linear_probe(train_features, train_labels, **probe_settings)
     return top_k_accuracy(probe, test_features.float(), test_labels)
+
+
+def run_evaluation(config):
+    """Evaluate an encoder on the validation or test split, save results/<run_name>.json."""
+    pl.seed_everything(config["seed"], workers=True)  # also fixes the random-init weights
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    datamodule = build_datamodule(config)
+    datamodule.prepare_data()
+    datamodule.setup()
+
+    encoder = build_encoder(config["latent_dim"])
+    if config["encoder_path"] is not None:
+        encoder.load_state_dict(torch.load(config["encoder_path"], map_location="cpu"))
+    extractor = build_feature_extractor(encoder, config["feature_layer"])
+
+    eval_loader = datamodule.test_dataloader() if config["eval_split"] == "test" else datamodule.val_dataloader()
+    train_features, train_labels = extract_features(extractor, datamodule.train_eval_dataloader(), device)
+    eval_features, eval_labels = extract_features(extractor, eval_loader, device)
+
+    num_classes = NUM_CLASSES[config["dataset"]]
+    knn = knn_accuracy(train_features, train_labels, eval_features, eval_labels, num_classes=num_classes)
+    probes = [linear_probe_accuracy(train_features, train_labels, eval_features, eval_labels,
+                                    num_classes=num_classes, epochs=config["probe_epochs"], seed=seed)
+              for seed in config["probe_seeds"]]
+    probe_top1 = [probe["top1"] for probe in probes]
+    metrics = {
+        "knn_top1": knn["top1"], "knn_top5": knn["top5"],
+        "probe_top1_mean": statistics.mean(probe_top1),
+        "probe_top1_std": statistics.pstdev(probe_top1),  # 0 with a single seed
+        "probe_top5_mean": statistics.mean(probe["top5"] for probe in probes),
+        "feature_dim": train_features.shape[1],
+    }
+
+    os.makedirs(config["results_dir"], exist_ok=True)
+    with open(os.path.join(config["results_dir"], f"{config['run_name']}.json"), "w") as file:
+        json.dump({"config": config, "metrics": metrics}, file, indent=2)
+    return metrics

@@ -6,7 +6,6 @@ One config file = one run. The run writes, under its run_name:
   outputs/encoders/<run_name>.pt             the encoder weights, for evaluation
   results/<run_name>.json                    final metrics + the full config
 """
-import argparse
 import json
 import os
 import time
@@ -19,9 +18,9 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from callbacks import ColabProgressBar, KNNMonitor
 from config import load_config
 from datamodule import build_datamodule
-from evaluate import run_evaluation
+from evaluation import run_evaluation
 from robustness import run_robustness
-from utils import build_model
+from utils import build_model, parse_args
 
 torch.set_float32_matmul_precision("medium")  # faster matmuls on modern GPUs, silences a Lightning warning
 
@@ -84,9 +83,7 @@ def run(config):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train one experiment from a YAML config.")
-    parser.add_argument("--config", required=True, help="path to a YAML file that overrides config.DEFAULTS")
-    config = load_config(parser.parse_args().config)
+    config = load_config(parse_args().config)
     if config["mode"] == "evaluate":
         final_metrics = run_evaluation(config)
     elif config["mode"] == "robustness":

@@ -1,8 +1,15 @@
+import argparse
+
 import torch
 
 from datamodule import NUM_CLASSES
-from classifier import EncoderClassifier
-from model import DenoisingAutoEncoder, build_encoder
+from model import DenoisingAutoEncoder, EncoderClassifier, build_encoder
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train one experiment from a YAML config.")
+    parser.add_argument("--config", required=True, help="path to a YAML file that overrides config.DEFAULTS")
+    return parser.parse_args()
 
 
 def build_model(config):
