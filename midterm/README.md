@@ -1,7 +1,7 @@
 # Midterm: autoencoder and SimCLR representations on Tiny-ImageNet
 
 Representation Learning 2026. Part A (denoising autoencoder) is implemented and evaluated.
-Part B (contrastive losses and augmentations) is in progress; its section at the end says what is missing.
+Part B (contrastive losses and augmentations) is in progress. Its section at the end says what is missing.
 
 The code follows the course `lec4/` layout: a flat folder run with `python train.py`, LightningModules in
 `model.py`, a LightningDataModule in `datamodule.py`, callbacks, losses and augmentations in their own files.
@@ -73,19 +73,19 @@ the previous step.
 
 | step | configs | runs | what it does |
 |---|---|---|---|
-| search | `configs/partA/search/` | 30 | random search over corruption type and strength, latent size, learning rate, weight decay (proxy: 25% of train, 20 epochs); k-NN on the validation hold-out is measured on both candidate layers, and the pooled conv layer is h |
+| search | `configs/partA/search/` | 30 | random search over corruption type and strength, latent size, learning rate, weight decay (proxy: 25% of train, 20 epochs). k-NN on the validation hold-out is measured on both candidate layers, and the pooled conv layer is h |
 | seedcheck | `configs/partA/seedcheck/` | 6 | the 3 best trials by validation k-NN, rerun with 2 more seeds (written by `make_configs.py --stage seedcheck`) |
 | pretrain | `configs/partA/final/final_*.yaml` | 6 (DAE and vanilla AE, 3 seeds) | the final DAE (best 3-seed mean, written to `configs/partA/final/selection.json`) and its vanilla twin (strength 0). Both train until validation reconstruction error stops improving, and keep their best epoch |
 | frozen | `configs/partA/final/full_eval_*.yaml` | 18 | k-NN and linear probe (3 probe seeds) on both layers, for DAE, vanilla AE and a random-init encoder |
 | robustness | `configs/partA/robustness/` | 9 (3 models x 3 seeds) | probe and k-NN under noise, blur, low contrast, JPEG and patch masking, severities 1-5 |
-| tune | `configs/partA/tune/` | 18 | learning-rate and weight-decay grid at 10% labels for scratch, vanilla AE and DAE; the best setting per start is picked from validation (`configs/partA/tune/selection.json`) |
+| tune | `configs/partA/tune/` | 18 | learning-rate and weight-decay grid at 10% labels for scratch, vanilla AE and DAE. The best setting per start is picked from validation (`configs/partA/tune/selection.json`) |
 | finetune, seeds | `configs/partA/finetune/`, `finetune_extra/` | 9 + 18 | fine-tuning at 1/10/100% labels (3 seeds), scratch vs vanilla AE vs DAE. No fixed epoch count: a run stops when validation top-1 has not improved for a few epochs and keeps its best epoch |
 | transfer | `configs/partA/transfer/` | 45 | the same encoders on CIFAR-100 (resized to 64x64): frozen evaluation and 3-seed fine-tuning |
 | test | `configs/partA/test/` | 90 | the final numbers on the test split, same recipes, run once with `--only test` |
 
 Data splits: 90k train images, a 10k hold-out (50 per class) for every tuning and stopping decision, and the official
 validation split (10k) as the test set. Everything before the last step uses the hold-out. All seeds are fixed
-(`seed: 42`; repeats use 43 and 44).
+(`seed: 42`, and repeats use 43 and 44).
 
 ### Analysis scripts (run from `midterm/`, after `summarize`)
 
@@ -95,9 +95,9 @@ uv run python -m scripts.interpret      # per-class k-NN, t-SNE, retrieval grid,
 uv run python -m scripts.scale_check    # why the DAE probe breaks under damage (feature shift)
 ```
 
-`interpret` and `scale_check` need the trained encoders (`outputs/encoders/final_*.pt`, produced by the pretrain step;
-copy them from the Colab Drive folder). TensorBoard logs of every run are written to `outputs/tb_logs/` (on Colab: the
-`rl_midterm` Drive folder); view them with `tensorboard --logdir outputs/tb_logs`.
+`interpret` and `scale_check` need the trained encoders (`outputs/encoders/final_*.pt`, produced by the pretrain step,
+so copy them from the Colab Drive folder). TensorBoard logs of every run are written to `outputs/tb_logs/` (on Colab, the
+`rl_midterm` Drive folder). View them with `tensorboard --logdir outputs/tb_logs`.
 
 The TensorBoard logs of the final Part A run (one folder per run) are shared here:
 <https://drive.google.com/drive/folders/1rdpXOjrG7_i45iYjwYg-IHhgvJTU6gVE>. Download the folder and point
@@ -122,7 +122,7 @@ The TensorBoard logs of the final Part A run (one folder per run) are shared her
 | `scripts/` | `summarize`, `make_figures`, `analysis`, `interpret`, `scale_check`, `export_curves` |
 
 `mode` in a config picks the job: `pretrain_dae`, `evaluate`, `finetune` or `robustness`. A config lists only what
-differs from `config.py` (`DEFAULTS`); an unknown key raises an error.
+differs from `config.py` (`DEFAULTS`), and an unknown key raises an error.
 
 ## Part B
 

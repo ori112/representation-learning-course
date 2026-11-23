@@ -1,8 +1,8 @@
 """Why does the DAE's linear probe collapse under damage while its k-NN barely moves?
 
 Hypothesis: damage shifts the feature vectors (mean and length) away from the clean
-train features the probe saw. A linear probe depends on that position; cosine k-NN
-only on direction. This script measures the shift on the validation split:
+train features the probe saw. A linear probe depends on that position, while cosine k-NN
+uses only the direction. This script measures the shift on the validation split:
   - norm_ratio:  mean ||h(corrupted)|| / mean ||h(clean)||
   - mean_shift:  average over dims of |mean(corrupted) - mean(clean)| / std(clean)
   - cosine_to_clean: cosine between each image's corrupted and clean feature (direction kept?)

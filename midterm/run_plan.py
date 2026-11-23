@@ -9,7 +9,7 @@ The order is the experiment itself:
   seedcheck   the 3 best trials again with 2 more seeds (picked automatically from the search results)
   pretrain    the final DAE and its vanilla twin on 3 seeds, from the trial with the best 3-seed mean (automatic)
   frozen, robustness   k-NN, probe and corruption tests of those encoders (3 seeds each, random-init baseline too)
-  tune        fine-tuning learning-rate grid at 10% labels for scratch, vanilla AE and DAE; the best per start is picked
+  tune        fine-tuning learning-rate grid at 10% labels for scratch, vanilla AE and DAE, and the best per start is picked
   finetune, seeds, transfer   fine-tuning at 1/10/100% labels (3 seeds) on Tiny-ImageNet and on CIFAR-100
   test        the same evaluations on the test split, once
 

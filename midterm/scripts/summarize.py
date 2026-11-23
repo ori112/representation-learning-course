@@ -75,7 +75,7 @@ def seed_suffix(seed):
 
 
 def mean_std(values):
-    """Mean and sample std (n-1) of a list; the std is 0 for a single value."""
+    """Mean and sample std (n-1) of a list. The std is 0 for a single value."""
     return statistics.mean(values), (statistics.stdev(values) if len(values) > 1 else 0.0)
 
 

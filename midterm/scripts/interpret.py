@@ -24,7 +24,7 @@ LATENT_DIM = 512
 TSNE_CLASSES = 20          # first 20 class ids: arbitrary but fixed, not cherry-picked
 RETRIEVAL_QUERIES = 4      # first query image of the first 4 classes: small enough for the report
 RETRIEVAL_MODELS = ("dae", "random")  # the DAE against the no-learning floor
-FEATURE_CACHE = "outputs/a5_features.pt"  # gitignored; extraction is the slow part on CPU
+FEATURE_CACHE = "outputs/a5_features.pt"  # gitignored, because extraction is the slow part on CPU
 RETRIEVAL_NEIGHBORS = 6
 
 
@@ -60,7 +60,8 @@ def plot_tsne(features_by_model, labels, save_path):
             F.normalize(features[keep], dim=1).numpy())
         scatter = ax.scatter(embedded[:, 0], embedded[:, 1], c=labels[keep].numpy(), cmap="tab20", s=6)
         ax.set_title(f"{name}: t-SNE, {TSNE_CLASSES} classes")
-        ax.set_xticks([]); ax.set_yticks([])
+        ax.set_xticks([])
+        ax.set_yticks([])
     fig.colorbar(scatter, ax=axes, label="class id", shrink=0.8)
     fig.savefig(save_path, dpi=150, bbox_inches="tight")
 
@@ -87,9 +88,11 @@ def plot_retrieval(images, labels, bank_images, bank_labels, features_by_model, 
                 axes[row][column].imshow(bank_images[neighbor].permute(1, 2, 0).numpy())
                 color = "limegreen" if bank_labels[neighbor] == labels[query_id] else "red"
                 for spine in axes[row][column].spines.values():
-                    spine.set_edgecolor(color); spine.set_linewidth(3)
+                    spine.set_edgecolor(color)
+                    spine.set_linewidth(3)
             for ax in axes[row]:
-                ax.set_xticks([]); ax.set_yticks([])
+                ax.set_xticks([])
+                ax.set_yticks([])
             row += 1
     fig.savefig(save_path, dpi=130, bbox_inches="tight")
 

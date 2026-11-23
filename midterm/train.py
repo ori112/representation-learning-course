@@ -1,7 +1,7 @@
 """Launch one experiment: python train.py --config configs/<name>.yaml
 
 One config file = one run. The run writes, under its run_name:
-  outputs/checkpoints/<run_name>/last.ckpt   resume point (Colab can disconnect); deleted once the run is done
+  outputs/checkpoints/<run_name>/last.ckpt   resume point (Colab can disconnect), deleted once the run is done
   outputs/tb_logs/<run_name>/                TensorBoard logs
   outputs/encoders/<run_name>.pt             the encoder weights, for evaluation (pre-training runs)
   results/<run_name>.json                    final metrics + the full config

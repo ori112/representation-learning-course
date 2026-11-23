@@ -2,9 +2,9 @@
 
     python make_configs.py --stage search      # 30 random-search trials (needs nothing)
     python make_configs.py --stage seedcheck   # repeat the 3 best trials with 2 more seeds (needs search results)
-    python make_configs.py --stage final       # pick the final model; write pre-training, frozen evaluation, robustness
+    python make_configs.py --stage final       # pick the final model, write pre-training, frozen evaluation, robustness
     python make_configs.py --stage tune        # fine-tuning learning-rate grid at 10% labels (needs the final encoders)
-    python make_configs.py --stage finetune    # pick each start's learning rate; write fine-tuning, transfer, test
+    python make_configs.py --stage finetune    # pick each start's learning rate, write fine-tuning, transfer, test
 
 Each experiment is one YAML file (the assignment asks for a config per run). Only the keys that
 differ from config.DEFAULTS are written. Nothing about the final model or the fine-tuning recipe is
@@ -167,7 +167,7 @@ def make_seed_check(folder="configs/partA/seedcheck"):
 
 
 # ---------------------------------------------------------------------------
-# Stage 3: choose the final model; write pre-training, frozen evaluation, robustness
+# Stage 3: choose the final model, then write pre-training, frozen evaluation, robustness
 # ---------------------------------------------------------------------------
 
 def choose_final_trial():
@@ -271,7 +271,7 @@ def make_tuning_runs(folder="configs/partA/tune"):
 
 
 # ---------------------------------------------------------------------------
-# Stage 5: pick the fine-tuning recipe per start; write fine-tuning, transfer and test configs
+# Stage 5: pick the fine-tuning recipe per start, then write fine-tuning, transfer and test configs
 # ---------------------------------------------------------------------------
 
 def choose_finetune_recipes():
@@ -302,7 +302,7 @@ def make_finetune_runs(latent_dim, recipes, folder_42="configs/partA/finetune", 
     """Fine-tune each encoder (and a from-scratch baseline) at 1%, 10%, 100% of the labels, 3 seeds.
 
     scratch = same architecture, random init: the supervised baseline. All variants share the same
-    recipe, except the learning rates chosen for each start in the tuning stage; only the starting
+    recipe, except the learning rates chosen for each start in the tuning stage. Only the starting
     weights differ. The seed changes head init, batch order and, for pretrained starts, which
     pre-trained encoder is the start. The class-balanced label subset is identical across seeds.
     """

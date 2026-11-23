@@ -26,7 +26,7 @@ def export(logs_dir, out_path, run_patterns):
         run_name = os.path.basename(run_dir)
         if not any(fnmatch.fnmatch(run_name, pattern) for pattern in run_patterns):
             continue
-        # Lightning writes outputs/tb_logs/<run>/version_N/events.*; a resumed run may have several versions.
+        # Lightning writes outputs/tb_logs/<run>/version_N/events.*, and a resumed run may have several versions.
         for version_dir in sorted(glob.glob(os.path.join(run_dir, "version_*"))):
             accumulator = EventAccumulator(version_dir, size_guidance={"scalars": 0})
             accumulator.Reload()
