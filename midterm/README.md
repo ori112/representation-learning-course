@@ -75,12 +75,13 @@ the previous step.
 |---|---|---|---|
 | search | `configs/partA/search/` | 30 | random search over corruption type and strength, latent size, learning rate, weight decay (proxy: 25% of train, 20 epochs); k-NN on the validation hold-out is measured on both candidate layers, and the pooled conv layer is h |
 | seedcheck | `configs/partA/seedcheck/` | 6 | the 3 best trials by validation k-NN, rerun with 2 more seeds (written by `make_configs.py --stage seedcheck`) |
-| pretrain | `configs/partA/final/final_*.yaml` | 2 | the final DAE (best 3-seed mean, written to `configs/partA/final/selection.json`) and its vanilla twin (strength 0). Both train until validation reconstruction error stops improving, and keep their best epoch |
-| frozen | `configs/partA/final/full_eval_*.yaml` | 6 | k-NN and linear probe (3 probe seeds) on both layers, for DAE, vanilla AE and a random-init encoder |
-| robustness | `configs/partA/robustness/` | 3 | probe and k-NN under noise, blur, low contrast, JPEG and patch masking, severities 1-5 |
+| pretrain | `configs/partA/final/final_*.yaml` | 6 (DAE and vanilla AE, 3 seeds) | the final DAE (best 3-seed mean, written to `configs/partA/final/selection.json`) and its vanilla twin (strength 0). Both train until validation reconstruction error stops improving, and keep their best epoch |
+| frozen | `configs/partA/final/full_eval_*.yaml` | 18 | k-NN and linear probe (3 probe seeds) on both layers, for DAE, vanilla AE and a random-init encoder |
+| robustness | `configs/partA/robustness/` | 9 (3 models x 3 seeds) | probe and k-NN under noise, blur, low contrast, JPEG and patch masking, severities 1-5 |
+| tune | `configs/partA/tune/` | 18 | learning-rate and weight-decay grid at 10% labels for scratch, vanilla AE and DAE; the best setting per start is picked from validation (`configs/partA/tune/selection.json`) |
 | finetune, seeds | `configs/partA/finetune/`, `finetune_extra/` | 9 + 18 | fine-tuning at 1/10/100% labels (3 seeds), scratch vs vanilla AE vs DAE. No fixed epoch count: a run stops when validation top-1 has not improved for a few epochs and keeps its best epoch |
-| transfer | `configs/partA/transfer/` | 33 | the same encoders on CIFAR-100 (resized to 64x64): frozen evaluation and 3-seed fine-tuning |
-| test | `configs/partA/test/` | 66 | the final numbers on the test split, same recipes, run once with `--only test` |
+| transfer | `configs/partA/transfer/` | 45 | the same encoders on CIFAR-100 (resized to 64x64): frozen evaluation and 3-seed fine-tuning |
+| test | `configs/partA/test/` | 90 | the final numbers on the test split, same recipes, run once with `--only test` |
 
 Data splits: 90k train images, a 10k hold-out (50 per class) for every tuning and stopping decision, and the official
 validation split (10k) as the test set. Everything before the last step uses the hold-out. All seeds are fixed
@@ -97,6 +98,10 @@ uv run python -m scripts.scale_check    # why the DAE probe breaks under damage 
 `interpret` and `scale_check` need the trained encoders (`outputs/encoders/final_*.pt`, produced by the pretrain step;
 copy them from the Colab Drive folder). TensorBoard logs of every run are written to `outputs/tb_logs/` (on Colab: the
 `rl_midterm` Drive folder); view them with `tensorboard --logdir outputs/tb_logs`.
+
+The TensorBoard logs of the final Part A run (one folder per run) are shared here:
+<https://drive.google.com/drive/folders/1rdpXOjrG7_i45iYjwYg-IHhgvJTU6gVE>. Download the folder and point
+`tensorboard --logdir` at it.
 
 ## Files
 

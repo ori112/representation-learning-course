@@ -1,0 +1,7 @@
+model,seed,corruption,corruption_strength,latent_dim,epochs_trained,best_epoch,val_recon_loss,val_knn_top1_bottleneck,val_knn_top1_conv,train_seconds
+dae,42,mask,0.3,512,38,35,0.00965,6.8,10.34,748.6
+dae,43,mask,0.3,512,42,42,0.00968,6.7,10.65,1008.4
+dae,44,mask,0.3,512,42,41,0.00963,6.45,10.97,633.2
+ae,42,mask,0.0,512,27,17,0.00912,7.15,11.31,472.7
+ae,43,mask,0.0,512,25,19,0.00913,6.47,11.25,502.1
+ae,44,mask,0.0,512,25,15,0.0091,6.75,11.28,344.8

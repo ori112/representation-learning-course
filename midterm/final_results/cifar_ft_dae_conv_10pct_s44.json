@@ -1,0 +1,45 @@
+{
+  "config": {
+    "run_name": "cifar_ft_dae_conv_10pct_s44",
+    "mode": "finetune",
+    "seed": 44,
+    "data_dir": "dataset/",
+    "output_dir": "outputs",
+    "results_dir": "results",
+    "dataset": "cifar100",
+    "batch_size": 256,
+    "train_fraction": 0.1,
+    "num_workers": 0,
+    "max_epochs": 400,
+    "early_stopping_patience": 25,
+    "early_stopping_min_delta": 0.0,
+    "precision": "auto",
+    "resume": true,
+    "fast_dev_run": false,
+    "latent_dim": 512,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "corruption": "gaussian",
+    "corruption_strength": 0.2,
+    "encoder_learning_rate": 0.0003,
+    "encoder_path": "outputs/encoders/final_dae_s44.pt",
+    "eval_split": "val",
+    "feature_layer": "conv",
+    "probe_seeds": [
+      42
+    ],
+    "probe_epochs": 50,
+    "knn_every_n_epochs": 5
+  },
+  "metrics": {
+    "train_loss": 1.4751269817352295,
+    "val_top1": 0.2142000049352646,
+    "val_top5": 0.4607999920845032,
+    "epochs_trained": 101,
+    "best_epoch": 76
+  },
+  "train_seconds": 35.5,
+  "device": "Tesla T4",
+  "precision": "16-mixed",
+  "resumed": false
+}

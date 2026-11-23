@@ -1,0 +1,13 @@
+model,corruption,norm_ratio,mean_shift_in_std,cosine_to_clean
+dae,gaussian_noise_s2,0.992,0.059,0.993
+dae,patch_mask_s1,0.952,4.809,0.989
+dae,gaussian_blur_s3,0.885,0.137,0.978
+dae,jpeg_s3,0.992,0.025,0.993
+ae,gaussian_noise_s2,1.0,0.044,0.996
+ae,patch_mask_s1,1.114,0.221,0.951
+ae,gaussian_blur_s3,0.857,0.216,0.972
+ae,jpeg_s3,0.984,0.027,0.994
+random,gaussian_noise_s2,1.005,0.086,0.999
+random,patch_mask_s1,0.959,0.19,0.995
+random,gaussian_blur_s3,0.981,0.219,0.996
+random,jpeg_s3,0.99,0.102,0.998

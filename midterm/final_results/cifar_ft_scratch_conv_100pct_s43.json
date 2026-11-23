@@ -1,0 +1,45 @@
+{
+  "config": {
+    "run_name": "cifar_ft_scratch_conv_100pct_s43",
+    "mode": "finetune",
+    "seed": 43,
+    "data_dir": "dataset/",
+    "output_dir": "outputs",
+    "results_dir": "results",
+    "dataset": "cifar100",
+    "batch_size": 256,
+    "train_fraction": 1.0,
+    "num_workers": 0,
+    "max_epochs": 150,
+    "early_stopping_patience": 8,
+    "early_stopping_min_delta": 0.0,
+    "precision": "auto",
+    "resume": true,
+    "fast_dev_run": false,
+    "latent_dim": 512,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0,
+    "corruption": "gaussian",
+    "corruption_strength": 0.2,
+    "encoder_learning_rate": 0.001,
+    "encoder_path": null,
+    "eval_split": "val",
+    "feature_layer": "conv",
+    "probe_seeds": [
+      42
+    ],
+    "probe_epochs": 50,
+    "knn_every_n_epochs": 5
+  },
+  "metrics": {
+    "train_loss": 1.8699088096618652,
+    "val_top1": 0.3346000015735626,
+    "val_top5": 0.5982000231742859,
+    "epochs_trained": 51,
+    "best_epoch": 43
+  },
+  "train_seconds": 95.9,
+  "device": "Tesla T4",
+  "precision": "16-mixed",
+  "resumed": false
+}

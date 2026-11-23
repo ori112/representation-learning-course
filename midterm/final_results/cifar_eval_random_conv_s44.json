@@ -1,0 +1,44 @@
+{
+  "config": {
+    "run_name": "cifar_eval_random_conv_s44",
+    "mode": "evaluate",
+    "seed": 44,
+    "data_dir": "dataset/",
+    "output_dir": "outputs",
+    "results_dir": "results",
+    "dataset": "cifar100",
+    "batch_size": 256,
+    "train_fraction": 1.0,
+    "num_workers": 0,
+    "max_epochs": 100,
+    "early_stopping_patience": null,
+    "early_stopping_min_delta": 0.0,
+    "precision": "auto",
+    "resume": true,
+    "fast_dev_run": false,
+    "latent_dim": 512,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0,
+    "corruption": "gaussian",
+    "corruption_strength": 0.2,
+    "encoder_learning_rate": 0.0001,
+    "encoder_path": null,
+    "eval_split": "val",
+    "feature_layer": "conv",
+    "probe_seeds": [
+      42,
+      43,
+      44
+    ],
+    "probe_epochs": 50,
+    "knn_every_n_epochs": 5
+  },
+  "metrics": {
+    "knn_top1": 0.1734,
+    "knn_top5": 0.3668,
+    "probe_top1_mean": 0.28700000047683716,
+    "probe_top1_std": 0.0004320566935044045,
+    "probe_top5_mean": 0.5437333186467489,
+    "feature_dim": 1024
+  }
+}

@@ -1,0 +1,13 @@
+dataset,model,layer,feature_dim,knn_top1_mean,knn_top1_std,knn_top5_mean,probe_top1_mean,probe_top1_std,probe_top5_mean,n_seeds
+tiny_imagenet,random,bottleneck,512,4.0,0.21,11.27,6.58,0.27,18.76,3
+tiny_imagenet,random,conv,1024,6.25,0.98,15.79,12.69,0.61,30.63,3
+tiny_imagenet,ae,bottleneck,512,6.58,0.24,17.12,6.86,0.12,19.35,3
+tiny_imagenet,ae,conv,1024,10.83,0.21,24.58,17.03,0.11,37.11,3
+tiny_imagenet,dae,bottleneck,512,7.05,0.21,17.53,7.63,0.15,21.93,3
+tiny_imagenet,dae,conv,1024,10.45,0.33,23.9,15.79,0.97,35.23,3
+cifar100,random,bottleneck,512,16.61,0.84,36.24,20.96,0.35,45.15,3
+cifar100,random,conv,1024,19.08,1.66,39.7,28.11,0.86,55.21,3
+cifar100,ae,bottleneck,512,22.8,0.54,43.32,18.81,0.08,41.9,3
+cifar100,ae,conv,1024,26.82,0.11,49.3,33.3,0.5,61.38,3
+cifar100,dae,bottleneck,512,23.8,0.22,43.6,20.11,0.19,43.77,3
+cifar100,dae,conv,1024,26.55,0.55,48.76,31.69,1.09,59.07,3

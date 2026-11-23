@@ -1,0 +1,47 @@
+{
+  "config": {
+    "run_name": "test_ft_scratch_conv_1pct_s44",
+    "mode": "finetune",
+    "seed": 44,
+    "data_dir": "dataset/",
+    "output_dir": "outputs",
+    "results_dir": "results",
+    "dataset": "tiny_imagenet",
+    "batch_size": 256,
+    "train_fraction": 0.01,
+    "num_workers": 0,
+    "max_epochs": 1000,
+    "early_stopping_patience": 100,
+    "early_stopping_min_delta": 0.0,
+    "precision": "auto",
+    "resume": true,
+    "fast_dev_run": false,
+    "latent_dim": 512,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0,
+    "corruption": "gaussian",
+    "corruption_strength": 0.2,
+    "encoder_learning_rate": 0.001,
+    "encoder_path": null,
+    "eval_split": "test",
+    "feature_layer": "conv",
+    "probe_seeds": [
+      42
+    ],
+    "probe_epochs": 50,
+    "knn_every_n_epochs": 5
+  },
+  "metrics": {
+    "train_loss": 0.006511441897600889,
+    "val_top1": 0.026200000196695328,
+    "val_top5": 0.08510000258684158,
+    "epochs_trained": 208,
+    "best_epoch": 108,
+    "test_top1": 0.02370000071823597,
+    "test_top5": 0.08550000190734863
+  },
+  "train_seconds": 59.3,
+  "device": "Tesla T4",
+  "precision": "16-mixed",
+  "resumed": false
+}

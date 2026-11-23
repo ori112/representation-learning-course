@@ -1,0 +1,47 @@
+{
+  "config": {
+    "run_name": "test_cifar_ft_ae_conv_100pct_s44",
+    "mode": "finetune",
+    "seed": 44,
+    "data_dir": "dataset/",
+    "output_dir": "outputs",
+    "results_dir": "results",
+    "dataset": "cifar100",
+    "batch_size": 256,
+    "train_fraction": 1.0,
+    "num_workers": 0,
+    "max_epochs": 150,
+    "early_stopping_patience": 8,
+    "early_stopping_min_delta": 0.0,
+    "precision": "auto",
+    "resume": true,
+    "fast_dev_run": false,
+    "latent_dim": 512,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0,
+    "corruption": "gaussian",
+    "corruption_strength": 0.2,
+    "encoder_learning_rate": 0.001,
+    "encoder_path": "outputs/encoders/final_ae_s44.pt",
+    "eval_split": "test",
+    "feature_layer": "conv",
+    "probe_seeds": [
+      42
+    ],
+    "probe_epochs": 50,
+    "knn_every_n_epochs": 5
+  },
+  "metrics": {
+    "train_loss": 1.9398465156555176,
+    "val_top1": 0.358599990606308,
+    "val_top5": 0.6431999802589417,
+    "epochs_trained": 65,
+    "best_epoch": 57,
+    "test_top1": 0.3555999994277954,
+    "test_top5": 0.6420999765396118
+  },
+  "train_seconds": 116.1,
+  "device": "Tesla T4",
+  "precision": "16-mixed",
+  "resumed": false
+}
