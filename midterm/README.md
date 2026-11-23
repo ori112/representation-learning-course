@@ -14,7 +14,7 @@ the module constants in `lec4/config.py`.
 |---|---|---|---|
 | 1. Wiring test | run two tiny configs | a laptop, no GPU | about 3 minutes |
 | 2. Rebuild every table and figure | `summarize` + `make_figures` on the committed raw results | a laptop, no GPU | about 1 minute |
-| 3. Rerun everything from zero | open the Colab notebook and run one cell | a Google account, free T4 GPU | many hours, restartable (see below) |
+| 3. Rerun everything from zero | open the Colab notebook and run its cells | a Google account, free T4 GPU | training alone adds up to about 4.5 hours, plus evaluation and Colab overhead. Restartable (see below) |
 
 ### Setup (needed for 1 and 2)
 
@@ -53,7 +53,7 @@ Open the launcher notebook (it loads straight from GitHub, never from a saved co
 
 <https://colab.research.google.com/github/ori112/representation-learning-course/blob/midterm/midterm/notebooks/colab_launcher.ipynb>
 
-Use a GPU runtime (Runtime > Change runtime type > T4 GPU). Run the first two code cells (they mount **your**
+Use a GPU runtime (Runtime > Change runtime type > T4 GPU). Run the first two code cells (they mount your own
 Google Drive, clone the repo, install `requirements.txt`, and keep outputs in a `rl_midterm/` folder on your Drive),
 then the cell `!python run_plan.py`. It runs the whole of Part A, one config per run through `train.py`, in order.
 If Colab disconnects, run the first two cells and the plan cell again: finished runs are skipped and an
