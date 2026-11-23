@@ -6,3 +6,5 @@
 **/*.ckpt
 **/*.pt
 .venv/
+**/results/
+**/outputs/

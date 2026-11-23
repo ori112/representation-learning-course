@@ -3,6 +3,7 @@ train_fraction: 0.25
 max_epochs: 20
 knn_every_n_epochs: 5
 feature_layer: conv
+save_encoder: false
 corruption: salt_pepper
 corruption_strength: 0.12
 latent_dim: 512

@@ -1,10 +1,13 @@
 """Launch one experiment: python train.py --config configs/<name>.yaml
 
 One config file = one run. The run writes, under its run_name:
-  outputs/checkpoints/<run_name>/last.ckpt   resume point (Colab can disconnect)
+  outputs/checkpoints/<run_name>/last.ckpt   resume point (Colab can disconnect); deleted once the run is done
   outputs/tb_logs/<run_name>/                TensorBoard logs
-  outputs/encoders/<run_name>.pt             the encoder weights, for evaluation
+  outputs/encoders/<run_name>.pt             the encoder weights, for evaluation (pre-training runs)
   results/<run_name>.json                    final metrics + the full config
+
+With early_stopping_patience set, training stops when the validation metric (val_top1 for fine-tuning,
+val_recon_loss for the autoencoder) has not improved for that many epochs, and the best epoch is kept.
 """
 import json
 import os
@@ -102,7 +105,7 @@ def run(config):
         # trainer.test replaces callback_metrics, so merge instead of overwrite to keep the val numbers.
         metrics.update({name: value.item() for name, value in trainer.callback_metrics.items()})
 
-    if config["mode"] == "pretrain_dae":
+    if config["mode"] == "pretrain_dae" and config["save_encoder"]:
         # Keep only the encoder: the decoder is discarded after training.
         os.makedirs(os.path.join(config["output_dir"], "encoders"), exist_ok=True)
         torch.save(model.encoder.state_dict(), os.path.join(config["output_dir"], "encoders", f"{run_name}.pt"))

@@ -27,6 +27,7 @@ DEFAULTS = {
     # Training stops after this many epochs without improvement, and the best epoch's weights are kept.
     "early_stopping_patience": None,
     "early_stopping_min_delta": 0.0,  # an improvement smaller than this does not reset the patience counter
+    "save_encoder": True,          # pre-training: keep outputs/encoders/<run>.pt. Off for the search, which only needs the metrics
     "precision": "auto",           # "16-mixed" on GPU, "32-true" on CPU
     "resume": True,                # continue from outputs/checkpoints/<run_name>/last.ckpt if present
     "fast_dev_run": False,         # one batch through every step: a wiring test, not a real run

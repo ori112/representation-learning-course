@@ -36,7 +36,7 @@ HYPERPARAMETERS = ("corruption", "corruption_strength", "latent_dim", "learning_
 
 # Proxy setting: a quarter of the train images and 20 epochs. Ranks trials at a fraction of the cost.
 # k-NN is measured on the pooled conv layer, the layer chosen as h (feature_layer, see config.py).
-PROXY = {"train_fraction": 0.25, "max_epochs": 20, "knn_every_n_epochs": 5, "feature_layer": "conv"}
+PROXY = {"train_fraction": 0.25, "max_epochs": 20, "knn_every_n_epochs": 5, "feature_layer": "conv", "save_encoder": False}
 
 # The final models train until validation reconstruction error stops improving (by at least 1e-4 for
 # 10 epochs) and keep their best epoch. max_epochs is only a safety cap.
@@ -57,6 +57,18 @@ FINETUNE_STOP = {
 # every weight. For a pretrained start the new head keeps 1e-3 and the encoder rate is the one tuned.
 TUNE_RATES = {"scratch": (3e-4, 1e-3, 3e-3), "ae": (1e-4, 3e-4, 1e-3), "dae": (1e-4, 3e-4, 1e-3)}
 TUNE_WEIGHT_DECAYS = (0.0, 1e-4)
+TUNE_FRACTION = 0.1  # the label fraction the grid is run at
+
+# PLAN_SMOKE=1 shrinks every stage to a few seconds, to test the whole chain (search -> ... -> fine-tuning)
+# on a laptop before spending GPU hours. It changes sizes only, never the logic. Not used for real runs.
+SMOKE = os.environ.get("PLAN_SMOKE") == "1"
+SMOKE_EVAL = {"train_fraction": 0.02, "probe_epochs": 3} if SMOKE else {}
+if SMOKE:
+    NUM_TRIALS, TOP_TRIALS = 4, 2
+    PROXY = {**PROXY, "train_fraction": 0.02, "max_epochs": 2, "knn_every_n_epochs": 1}
+    FULL_PRETRAIN = {**FULL_PRETRAIN, "train_fraction": 0.02, "max_epochs": 3, "knn_every_n_epochs": 1}
+    FINETUNE_STOP = {fraction: {"max_epochs": 3, "early_stopping_patience": 1} for fraction in (0.01, 0.02, 0.03)}
+    TUNE_FRACTION = 0.02
 
 SELECTION_PATH = "configs/partA/final/selection.json"
 TUNING_PATH = "configs/partA/tune/selection.json"
@@ -180,7 +192,7 @@ def choose_final_trial():
 
 def evaluation_settings(model, layer, seed, latent_dim, extra=None):
     """A frozen evaluation (mode: evaluate) of one encoder. The random-init encoder depends on the seed too."""
-    settings = {**(extra or {}), "mode": "evaluate", "seed": seed, "probe_seeds": [42, 43, 44],
+    settings = {**(extra or {}), **SMOKE_EVAL, "mode": "evaluate", "seed": seed, "probe_seeds": [42, 43, 44],
                 "latent_dim": latent_dim, "feature_layer": layer}
     if model != "random":
         settings["encoder_path"] = encoder_path(model, seed)
@@ -254,7 +266,8 @@ def make_tuning_runs(folder="configs/partA/tune"):
                 write_config(folder, f"tune_{start}_lr{rate:g}_wd{weight_decay:g}", {
                     "mode": "finetune", "feature_layer": "conv", "latent_dim": latent_dim, "seed": 42,
                     "encoder_path": None if start == "scratch" else encoder_path(start, 42),
-                    "train_fraction": 0.1, **FINETUNE_STOP[0.1], **rate_settings(start, rate, weight_decay)})
+                    "train_fraction": TUNE_FRACTION, **FINETUNE_STOP[TUNE_FRACTION],
+                    **rate_settings(start, rate, weight_decay)})
 
 
 # ---------------------------------------------------------------------------
